@@ -15,10 +15,9 @@ export function useScanner() {
     setState(s => ({ ...s, loading: true, error: null, scanned: false }));
 
     try {
-      const [{ empty, withBalance }, nfts] = await Promise.all([
-        scanTokenAccounts(walletAddress),
-        scanNFTs(walletAddress),
-      ]);
+      const nfts = await scanNFTs(walletAddress);
+      const nftMints = new Set(nfts.map(n => n.id));
+      const { empty, withBalance } = await scanTokenAccounts(walletAddress, nftMints);
 
       setState({
         loading: false,

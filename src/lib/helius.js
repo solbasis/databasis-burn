@@ -6,7 +6,7 @@ export function getConnection() {
   return new Connection(RPC_URL, 'confirmed');
 }
 
-export async function scanTokenAccounts(walletAddress) {
+export async function scanTokenAccounts(walletAddress, nftMints = new Set()) {
   const connection = getConnection();
   const pubkey = new PublicKey(walletAddress);
 
@@ -39,7 +39,7 @@ export async function scanTokenAccounts(walletAddress) {
 
     if (amount === 0n) {
       empty.push(entry);
-    } else {
+    } else if (!nftMints.has(mint)) {
       withBalance.push(entry);
     }
   }

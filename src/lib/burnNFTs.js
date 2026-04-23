@@ -3,6 +3,7 @@ import { walletAdapterIdentity } from '@metaplex-foundation/umi-signer-wallet-ad
 import { burnV1 as burnCoreV1, mplCore } from '@metaplex-foundation/mpl-core';
 import {
   burnV1 as burnMetadataV1,
+  findMetadataPda,
   mplTokenMetadata,
   TokenStandard,
 } from '@metaplex-foundation/mpl-token-metadata';
@@ -26,11 +27,15 @@ export async function burnCoreNFT(wallet, nft) {
 
 export async function burnLegacyNFT(wallet, nft) {
   const umi = makeUmi(wallet);
+  const collectionMetadata = nft.collection
+    ? findMetadataPda(umi, { mint: publicKey(nft.collection) })
+    : undefined;
   await burnMetadataV1(umi, {
     mint: publicKey(nft.id),
     tokenStandard: nft.interface === 'ProgrammableNFT'
       ? TokenStandard.ProgrammableNonFungible
       : TokenStandard.NonFungible,
+    ...(collectionMetadata ? { collectionMetadata } : {}),
   }).sendAndConfirm(umi);
 }
 

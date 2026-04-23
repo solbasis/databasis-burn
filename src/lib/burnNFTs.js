@@ -8,7 +8,19 @@ import {
   TokenStandard,
 } from '@metaplex-foundation/mpl-token-metadata';
 import { publicKey } from '@metaplex-foundation/umi';
+import {
+  Connection,
+  PublicKey,
+  Transaction,
+} from '@solana/web3.js';
+import {
+  createBurnInstruction,
+  createCloseAccountInstruction,
+  getAssociatedTokenAddress,
+  TOKEN_PROGRAM_ID,
+} from '@solana/spl-token';
 import { RPC_URL } from '../config';
+import { getConnection } from './helius';
 
 function makeUmi(wallet) {
   return createUmi(RPC_URL)
@@ -39,6 +51,27 @@ export async function burnLegacyNFT(wallet, nft) {
   }).sendAndConfirm(umi);
 }
 
+// Fallback for scam/non-standard NFTs with no valid Metaplex metadata
+async function burnRawTokenAccount(wallet, mintAddress) {
+  const connection = getConnection();
+  const owner = wallet.publicKey;
+  const mint = new PublicKey(mintAddress);
+  const tokenAccount = await getAssociatedTokenAddress(mint, owner);
+
+  const tx = new Transaction();
+  tx.add(createBurnInstruction(tokenAccount, mint, owner, 1n, [], TOKEN_PROGRAM_ID));
+  tx.add(createCloseAccountInstruction(tokenAccount, owner, owner, [], TOKEN_PROGRAM_ID));
+
+  const { blockhash } = await connection.getLatestBlockhash();
+  tx.recentBlockhash = blockhash;
+  tx.feePayer = owner;
+
+  const signed = await wallet.signTransaction(tx);
+  const txid = await connection.sendRawTransaction(signed.serialize());
+  await connection.confirmTransaction(txid, 'confirmed');
+  return txid;
+}
+
 export async function burnNFTs(wallet, nfts, onProgress) {
   const txids = [];
 
@@ -48,7 +81,12 @@ export async function burnNFTs(wallet, nfts, onProgress) {
       if (nft.interface === 'MplCoreAsset') {
         await burnCoreNFT(wallet, nft);
       } else {
-        await burnLegacyNFT(wallet, nft);
+        try {
+          await burnLegacyNFT(wallet, nft);
+        } catch {
+          // Scam/non-standard NFT — fall back to raw SPL Token burn
+          await burnRawTokenAccount(wallet, nft.id);
+        }
       }
     } catch (err) {
       console.error(`Failed to burn NFT ${nft.id}:`, err);

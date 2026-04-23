@@ -44,7 +44,63 @@ export async function scanTokenAccounts(walletAddress) {
     }
   }
 
+  // Enrich tokens with metadata + USD price
+  if (withBalance.length > 0) {
+    const mints = [...new Set(withBalance.map(t => t.mint))];
+    const [metaMap, priceMap] = await Promise.all([
+      fetchTokenMetadata(mints),
+      fetchTokenPrices(mints),
+    ]);
+    for (const t of withBalance) {
+      const meta = metaMap[t.mint] ?? {};
+      t.logo   = meta.logo ?? null;
+      t.symbol = meta.symbol ?? null;
+      t.name   = meta.name ?? null;
+      t.usdPrice  = priceMap[t.mint] ?? null;
+      t.usdValue  = t.usdPrice != null ? t.uiAmount * t.usdPrice : null;
+    }
+  }
+
   return { empty, withBalance };
+}
+
+async function fetchTokenMetadata(mints) {
+  const body = {
+    jsonrpc: '2.0', id: 'meta', method: 'getAssetBatch',
+    params: { ids: mints },
+  };
+  const res = await fetch(HELIUS_DAS, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  });
+  const json = await res.json();
+  const map = {};
+  for (const asset of json.result ?? []) {
+    if (!asset?.id) continue;
+    map[asset.id] = {
+      logo:   asset.content?.links?.image ?? null,
+      symbol: asset.content?.metadata?.symbol ?? null,
+      name:   asset.content?.metadata?.name ?? null,
+    };
+  }
+  return map;
+}
+
+async function fetchTokenPrices(mints) {
+  try {
+    const res = await fetch(
+      `https://lite-api.jup.ag/price/v2?ids=${mints.join(',')}`
+    );
+    const json = await res.json();
+    const map = {};
+    for (const [mint, data] of Object.entries(json.data ?? {})) {
+      if (data?.price) map[mint] = parseFloat(data.price);
+    }
+    return map;
+  } catch {
+    return {};
+  }
 }
 
 export async function scanNFTs(walletAddress) {

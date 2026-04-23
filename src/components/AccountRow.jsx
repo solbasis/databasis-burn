@@ -19,9 +19,21 @@ export function AccountRow({ item, type, selected, onToggle }) {
           </>
         ) : (
           <>
-            <span className="account-mint">{item.mint.slice(0, 8)}…{item.mint.slice(-4)}</span>
+            {item.logo
+              ? <img src={item.logo} alt={item.symbol ?? ''} className="token-logo" onError={e => e.target.style.display='none'} />
+              : <div className="token-logo-placeholder" />
+            }
+            <div className="token-info">
+              <span className="token-symbol">{item.symbol ?? `${item.mint.slice(0,4)}…${item.mint.slice(-4)}`}</span>
+              {item.name && <span className="token-name">{item.name}</span>}
+            </div>
             {type === 'token' && (
-              <span className="account-balance">{item.uiAmount.toLocaleString()} tokens</span>
+              <div className="token-amounts">
+                <span className="account-balance">{item.uiAmount.toLocaleString()}</span>
+                {item.usdValue != null && (
+                  <span className="token-usd">${item.usdValue < 0.01 ? item.usdValue.toFixed(6) : item.usdValue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                )}
+              </div>
             )}
           </>
         )}

@@ -420,6 +420,54 @@ a:hover { color: var(--g-bright); text-decoration: underline; }
   margin-left: auto;
 }
 
+.token-logo {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  border: 1px solid var(--border);
+  flex-shrink: 0;
+  object-fit: cover;
+}
+.token-logo-placeholder {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  border: 1px solid var(--border);
+  background: var(--g06);
+  flex-shrink: 0;
+}
+.token-info {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
+}
+.token-symbol {
+  font-size: 0.78rem;
+  color: var(--text-soft);
+  font-weight: 500;
+}
+.token-name {
+  font-size: 0.62rem;
+  color: var(--text-mute);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 160px;
+}
+.token-amounts {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 1px;
+  margin-left: auto;
+  margin-right: 10px;
+}
+.token-usd {
+  font-size: 0.68rem;
+  color: var(--pos);
+}
+
 /* ── Action Bar ────────────────────────────────────────── */
 .action-bar {
   display: flex;

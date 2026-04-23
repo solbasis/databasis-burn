@@ -49,7 +49,7 @@ export async function burnCNFT(wallet, nft) {
     nonce:       leafId,
     index:       leafId,
     proof:       proof.proof.map(p => publicKey(p)),
-  }).sendAndConfirm(umi);
+  }).sendAndConfirm(umi, { send: { skipPreflight: true } });
 }
 
 export async function burnCoreNFT(wallet, nft) {

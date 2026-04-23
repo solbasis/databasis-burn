@@ -64,11 +64,11 @@ export default function App() {
   const handleModalClose = useCallback(() => {
     setShowModal(false);
     burnState.reset();
-    if (burnState.done) {
-      resetScan();
+    if (burnState.done && wallet.publicKey) {
       setSelected(new Set());
+      scan(wallet.publicKey.toBase58());
     }
-  }, [burnState, resetScan]);
+  }, [burnState, wallet.publicKey, scan]);
 
   const recoveredSol = [...empty, ...tokens]
     .filter(a => selected.has(a.address))

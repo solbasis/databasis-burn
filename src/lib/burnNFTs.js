@@ -56,7 +56,11 @@ async function burnRawTokenAccount(wallet, mintAddress) {
   const connection = getConnection();
   const owner = wallet.publicKey;
   const mint = new PublicKey(mintAddress);
-  const tokenAccount = await getAssociatedTokenAddress(mint, owner);
+
+  // Look up the actual token account — don't assume it's the ATA
+  const accounts = await connection.getTokenAccountsByOwner(owner, { mint });
+  if (accounts.value.length === 0) throw new Error('No token account found for this NFT');
+  const tokenAccount = accounts.value[0].pubkey;
 
   const tx = new Transaction();
   tx.add(createBurnInstruction(tokenAccount, mint, owner, 1n, [], TOKEN_PROGRAM_ID));

@@ -67,8 +67,9 @@ export function useBurn() {
 
       const balanceAfter = await connection.getBalance(wallet.publicKey);
       const recoveredLamports = Math.max(0, balanceAfter - balanceBefore);
+      console.log('[useBurn] autoBuy:', autoBuy, 'recoveredLamports:', recoveredLamports, 'balanceBefore:', balanceBefore, 'balanceAfter:', balanceAfter);
 
-      if (autoBuy && recoveredLamports > 1_000_000) {
+      if (autoBuy && recoveredLamports > 0) {
         setStatus(s => ({ ...s, step: 'buying-basis', progress: 0 }));
         const txid = await swapSolForBasis(wallet, recoveredLamports);
         allTxids.push(txid);

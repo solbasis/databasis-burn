@@ -9,12 +9,14 @@ export async function getQuote(lamports) {
     inputMint: SOL_MINT,
     outputMint: BASIS_MINT,
     amount: String(lamports),
-    slippageBps: '100',
+    slippageBps: '500',
   });
 
   const res = await fetch(`${JUPITER_QUOTE_API}?${params}`);
-  if (!res.ok) throw new Error('Failed to get Jupiter quote');
-  return res.json();
+  const json = await res.json();
+  console.log('[jupiter] quote response', json);
+  if (!res.ok || json.error) throw new Error(json.error ?? 'Failed to get Jupiter quote');
+  return json;
 }
 
 export async function swapSolForBasis(wallet, lamports) {
@@ -33,6 +35,7 @@ export async function swapSolForBasis(wallet, lamports) {
   });
 
   const swapJson = await res.json();
+  console.log('[jupiter] swap response', swapJson);
   if (!res.ok || swapJson.error) {
     throw new Error(swapJson.error ?? 'Failed to get Jupiter swap transaction');
   }
@@ -46,6 +49,8 @@ export async function swapSolForBasis(wallet, lamports) {
   const connection = getConnection();
   const { blockhash, lastValidBlockHeight } = await connection.getLatestBlockhash();
   const txid = await connection.sendRawTransaction(signed.serialize(), { skipPreflight: true });
-  await connection.confirmTransaction({ signature: txid, blockhash, lastValidBlockHeight }, 'confirmed');
+  console.log('[jupiter] swap sent', txid);
+  const confirmation = await connection.confirmTransaction({ signature: txid, blockhash, lastValidBlockHeight }, 'confirmed');
+  if (confirmation.value.err) throw new Error(`Swap failed on-chain: ${JSON.stringify(confirmation.value.err)}`);
   return txid;
 }

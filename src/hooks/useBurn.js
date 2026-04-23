@@ -3,7 +3,6 @@ import { closeEmptyAccounts, burnTokenAccounts } from '../lib/solana';
 import { burnNFTs } from '../lib/burnNFTs';
 import { swapSolForBasis } from '../lib/jupiter';
 import { getConnection } from '../lib/helius';
-import { SOL_PER_LAMPORT } from '../config';
 
 export function useBurn() {
   const [status, setStatus] = useState({
@@ -14,6 +13,7 @@ export function useBurn() {
     error: null,
     recoveredLamports: 0,
     txids: [],
+    failures: [],
   });
 
   const execute = useCallback(async ({
@@ -24,17 +24,27 @@ export function useBurn() {
     selectedCNFTs = [],
     autoBuy,
   }) => {
-    setStatus({ running: true, step: 'preparing', progress: 0, done: false, error: null, recoveredLamports: 0, txids: [] });
+    setStatus({ running: true, step: 'preparing', progress: 0, done: false, error: null, recoveredLamports: 0, txids: [], failures: [] });
 
+    // Live progress state — committed incrementally so that on error the UI
+    // still shows what did succeed.
     const allTxids = [];
+    const allFailures = [];
     let totalRentLamports = 0;
+
+    const commit = (patch) => setStatus(s => ({
+      ...s,
+      ...patch,
+      txids: [...allTxids],
+      failures: [...allFailures],
+    }));
 
     try {
       const connection = getConnection();
       const balanceBefore = await connection.getBalance(wallet.publicKey);
 
       if (selectedEmpty.length > 0) {
-        setStatus(s => ({ ...s, step: 'closing', progress: 0 }));
+        commit({ step: 'closing', progress: 0 });
         const txids = await closeEmptyAccounts(wallet, selectedEmpty, p =>
           setStatus(s => ({ ...s, progress: p }))
         );
@@ -43,7 +53,7 @@ export function useBurn() {
       }
 
       if (selectedTokens.length > 0) {
-        setStatus(s => ({ ...s, step: 'burning-tokens', progress: 0 }));
+        commit({ step: 'burning-tokens', progress: 0 });
         const txids = await burnTokenAccounts(wallet, selectedTokens, p =>
           setStatus(s => ({ ...s, progress: p }))
         );
@@ -52,17 +62,21 @@ export function useBurn() {
       }
 
       if (selectedNFTs.length > 0) {
-        setStatus(s => ({ ...s, step: 'burning-nfts', progress: 0 }));
-        await burnNFTs(wallet, selectedNFTs, p =>
+        commit({ step: 'burning-nfts', progress: 0 });
+        const { txids, failures } = await burnNFTs(wallet, selectedNFTs, p =>
           setStatus(s => ({ ...s, progress: p }))
         );
+        allTxids.push(...txids);
+        allFailures.push(...failures);
       }
 
       if (selectedCNFTs.length > 0) {
-        setStatus(s => ({ ...s, step: 'burning-cnfts', progress: 0 }));
-        await burnNFTs(wallet, selectedCNFTs, p =>
+        commit({ step: 'burning-cnfts', progress: 0 });
+        const { txids, failures } = await burnNFTs(wallet, selectedCNFTs, p =>
           setStatus(s => ({ ...s, progress: p }))
         );
+        allTxids.push(...txids);
+        allFailures.push(...failures);
       }
 
       const balanceAfter = await connection.getBalance(wallet.publicKey);
@@ -75,9 +89,18 @@ export function useBurn() {
       const swapLamports = Math.max(0, totalRentLamports - SWAP_FEE_BUFFER_LAMPORTS);
 
       if (autoBuy && swapLamports > 0) {
-        setStatus(s => ({ ...s, step: 'buying-basis', progress: 0 }));
-        const txid = await swapSolForBasis(wallet, swapLamports);
-        allTxids.push(txid);
+        commit({ step: 'buying-basis', progress: 0 });
+        try {
+          const txid = await swapSolForBasis(wallet, swapLamports);
+          allTxids.push(txid);
+        } catch (swapErr) {
+          // Swap failure shouldn't void the whole burn — rent is already recovered.
+          allFailures.push({
+            id: 'auto-buy',
+            name: 'Auto-buy $BASIS',
+            error: swapErr?.message ?? String(swapErr),
+          });
+        }
       }
 
       setStatus({
@@ -87,15 +110,24 @@ export function useBurn() {
         done: true,
         error: null,
         recoveredLamports,
-        txids: allTxids,
+        txids: [...allTxids],
+        failures: [...allFailures],
       });
     } catch (err) {
-      setStatus(s => ({ ...s, running: false, error: err.message }));
+      // Preserve partial progress (txids + failures) so the modal can show
+      // "3 of 5 succeeded, then error X" instead of wiping the results.
+      setStatus(s => ({
+        ...s,
+        running: false,
+        error: err?.message ?? String(err),
+        txids: [...allTxids],
+        failures: [...allFailures],
+      }));
     }
   }, []);
 
   const reset = useCallback(() => {
-    setStatus({ running: false, step: null, progress: 0, done: false, error: null, recoveredLamports: 0, txids: [] });
+    setStatus({ running: false, step: null, progress: 0, done: false, error: null, recoveredLamports: 0, txids: [], failures: [] });
   }, []);
 
   return { ...status, execute, reset };

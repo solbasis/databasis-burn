@@ -643,6 +643,28 @@ a:hover { color: var(--g-bright); text-decoration: underline; }
 .txid-link:hover { color: var(--g); text-decoration: none; }
 
 .modal-error-msg { font-size: 0.78rem; color: var(--neg); }
+.modal-partial { font-size: 0.78rem; color: var(--text-soft); margin-top: 8px; }
+
+.failure-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-top: 8px;
+  padding: 8px;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  max-height: 160px;
+  overflow-y: auto;
+}
+.failure-title { font-size: 0.72rem; color: var(--neg); margin: 0 0 4px 0; }
+.failure-row {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  font-size: 0.66rem;
+}
+.failure-name { color: var(--text-soft); }
+.failure-error { color: var(--neg); opacity: 0.75; word-break: break-word; }
 
 /* ── Footer ────────────────────────────────────────────── */
 .footer {

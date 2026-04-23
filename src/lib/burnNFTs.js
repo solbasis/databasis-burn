@@ -148,8 +148,12 @@ async function burnRawTokenAccount(wallet, mintAddress) {
   return txid;
 }
 
+// Returns { txids: <successful asset ids>, failures: [{ id, name, error }] }.
+// Does NOT throw on per-NFT failure — collects and continues so one bad NFT
+// doesn't abort the whole batch and lose successful results.
 export async function burnNFTs(wallet, nfts, onProgress) {
   const txids = [];
+  const failures = [];
 
   for (let i = 0; i < nfts.length; i++) {
     const nft = nfts[i];
@@ -161,18 +165,28 @@ export async function burnNFTs(wallet, nfts, onProgress) {
       } else {
         try {
           await burnLegacyNFT(wallet, nft);
-        } catch {
-          // Scam/non-standard NFT — fall back to raw SPL Token burn
-          await burnRawTokenAccount(wallet, nft.id);
+        } catch (inner) {
+          // Scam/non-standard NFT — try raw SPL Token burn fallback.
+          // If that also fails, surface the fallback's error (more actionable
+          // than Metaplex's generic "missing metadata").
+          try {
+            await burnRawTokenAccount(wallet, nft.id);
+          } catch (fallbackErr) {
+            throw fallbackErr ?? inner;
+          }
         }
       }
+      txids.push(nft.id);
     } catch (err) {
       console.error(`Failed to burn NFT ${nft.id}:`, err);
-      throw err;
+      failures.push({
+        id: nft.id,
+        name: nft.name ?? 'Unknown',
+        error: err?.message ?? String(err),
+      });
     }
-    txids.push(nft.id);
     onProgress?.((i + 1) / nfts.length);
   }
 
-  return txids;
+  return { txids, failures };
 }

@@ -74,6 +74,8 @@ export async function getAssetProof(assetId) {
     }),
   });
   const json = await res.json();
+  if (json.error) throw new Error(json.error.message ?? 'DAS getAssetProof failed');
+  if (!json.result) throw new Error('getAssetProof returned no result');
   return json.result;
 }
 
@@ -101,45 +103,60 @@ async function fetchTokenMetadata(mints) {
 }
 
 async function fetchTokenPrices(mints) {
-  try {
-    const res = await fetch(
-      `https://lite-api.jup.ag/price/v2?ids=${mints.join(',')}`
-    );
-    const json = await res.json();
-    const map = {};
-    for (const [mint, data] of Object.entries(json.data ?? {})) {
-      if (data?.price) map[mint] = parseFloat(data.price);
+  // Jupiter's price API has a ~100 id limit per request. Chunk to stay under
+  // URL length limits and API caps.
+  const CHUNK = 100;
+  const map = {};
+  for (let i = 0; i < mints.length; i += CHUNK) {
+    const slice = mints.slice(i, i + CHUNK);
+    try {
+      const res = await fetch(
+        `https://lite-api.jup.ag/price/v2?ids=${slice.join(',')}`
+      );
+      const json = await res.json();
+      for (const [mint, data] of Object.entries(json.data ?? {})) {
+        if (data?.price) map[mint] = parseFloat(data.price);
+      }
+    } catch {
+      // swallow — price enrichment is best-effort
     }
-    return map;
-  } catch {
-    return {};
   }
+  return map;
 }
 
 export async function scanNFTs(walletAddress) {
-  const body = {
-    jsonrpc: '2.0',
-    id: 'get-assets',
-    method: 'getAssetsByOwner',
-    params: {
-      ownerAddress: walletAddress,
-      page: 1,
-      limit: 1000,
-      displayOptions: {
-        showFungible: false,
-        showNativeBalance: false,
+  const LIMIT = 1000;
+  const MAX_PAGES = 10; // 10k NFT ceiling; Helius paginates from 1
+  const items = [];
+
+  for (let page = 1; page <= MAX_PAGES; page++) {
+    const body = {
+      jsonrpc: '2.0',
+      id: `get-assets-${page}`,
+      method: 'getAssetsByOwner',
+      params: {
+        ownerAddress: walletAddress,
+        page,
+        limit: LIMIT,
+        displayOptions: {
+          showFungible: false,
+          showNativeBalance: false,
+        },
       },
-    },
-  };
+    };
 
-  const res = await fetch(HELIUS_DAS, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(body),
-  });
+    const res = await fetch(HELIUS_DAS, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    });
 
-  const json = await res.json();
-  const items = json.result?.items ?? [];
+    const json = await res.json();
+    if (json.error) throw new Error(json.error.message ?? 'DAS getAssetsByOwner failed');
+    const pageItems = json.result?.items ?? [];
+    items.push(...pageItems);
+    if (pageItems.length < LIMIT) break; // last page
+  }
 
   return items
     .filter(a => a.interface === 'V1_NFT' || a.interface === 'ProgrammableNFT' || a.interface === 'MplCoreAsset')

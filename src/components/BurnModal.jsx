@@ -10,7 +10,7 @@ const STEP_LABELS = {
 };
 
 export function BurnModal({ status, onClose }) {
-  const { running, step, progress, done, error, recoveredLamports, txids } = status;
+  const { running, step, progress, done, error, recoveredLamports, txids, failures = [] } = status;
 
   return (
     <div className="modal-overlay" onClick={done || error ? onClose : undefined}>
@@ -47,6 +47,17 @@ export function BurnModal({ status, onClose }) {
                 ))}
               </div>
             )}
+            {failures.length > 0 && (
+              <div className="failure-list">
+                <p className="failure-title">{failures.length} failed:</p>
+                {failures.map((f, i) => (
+                  <div key={`${f.id}-${i}`} className="failure-row">
+                    <span className="failure-name">{f.name}</span>
+                    <span className="failure-error">{f.error}</span>
+                  </div>
+                ))}
+              </div>
+            )}
             <button className="btn-primary" onClick={onClose}>close</button>
           </>
         )}
@@ -55,6 +66,24 @@ export function BurnModal({ status, onClose }) {
           <>
             <h2 className="modal-title error">error</h2>
             <p className="modal-error-msg">{error}</p>
+            {txids.length > 0 && (
+              <>
+                <p className="modal-partial">partial success — {txids.length} tx confirmed:</p>
+                <div className="txid-list">
+                  {txids.map(id => (
+                    <a
+                      key={id}
+                      href={`https://solscan.io/tx/${id}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="txid-link"
+                    >
+                      {id.slice(0, 8)}…{id.slice(-8)} ↗
+                    </a>
+                  ))}
+                </div>
+              </>
+            )}
             <button className="btn-primary" onClick={onClose}>close</button>
           </>
         )}

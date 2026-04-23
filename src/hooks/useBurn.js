@@ -58,7 +58,7 @@ export function useBurn() {
       }
 
       const balanceAfter = await connection.getBalance(wallet.publicKey);
-      const recoveredLamports = Math.max(0, balanceAfter - balanceBefore + 5000);
+      const recoveredLamports = Math.max(0, balanceAfter - balanceBefore);
 
       if (autoBuy && recoveredLamports > 10_000_000) {
         setStatus(s => ({ ...s, step: 'buying-basis', progress: 0 }));
@@ -72,7 +72,7 @@ export function useBurn() {
         progress: 1,
         done: true,
         error: null,
-        recoveredLamports: totalRentLamports,
+        recoveredLamports,
         txids: allTxids,
       });
     } catch (err) {

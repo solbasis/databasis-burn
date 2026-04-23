@@ -44,13 +44,14 @@ export async function closeEmptyAccounts(wallet, accounts, onProgress) {
       );
     }
 
-    const { blockhash } = await connection.getLatestBlockhash();
+    const { blockhash, lastValidBlockHeight } = await connection.getLatestBlockhash();
     tx.recentBlockhash = blockhash;
     tx.feePayer = owner;
 
     const signed = await wallet.signTransaction(tx);
     const txid = await connection.sendRawTransaction(signed.serialize());
-    await connection.confirmTransaction(txid, 'confirmed');
+    const conf = await connection.confirmTransaction({ signature: txid, blockhash, lastValidBlockHeight }, 'confirmed');
+    if (conf.value.err) throw new Error(`Close tx failed: ${JSON.stringify(conf.value.err)}`);
     txids.push(txid);
 
     onProgress?.((i + 1) / batches.length);
@@ -83,13 +84,14 @@ export async function burnTokenAccounts(wallet, accounts, onProgress) {
       );
     }
 
-    const { blockhash } = await connection.getLatestBlockhash();
+    const { blockhash, lastValidBlockHeight } = await connection.getLatestBlockhash();
     tx.recentBlockhash = blockhash;
     tx.feePayer = owner;
 
     const signed = await wallet.signTransaction(tx);
     const txid = await connection.sendRawTransaction(signed.serialize());
-    await connection.confirmTransaction(txid, 'confirmed');
+    const conf = await connection.confirmTransaction({ signature: txid, blockhash, lastValidBlockHeight }, 'confirmed');
+    if (conf.value.err) throw new Error(`Burn tx failed: ${JSON.stringify(conf.value.err)}`);
     txids.push(txid);
 
     onProgress?.((i + 1) / batches.length);

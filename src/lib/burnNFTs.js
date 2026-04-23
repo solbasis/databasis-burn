@@ -18,8 +18,9 @@ import {
 import {
   createBurnInstruction,
   createCloseAccountInstruction,
-  getAssociatedTokenAddress,
+  getMint,
   TOKEN_PROGRAM_ID,
+  TOKEN_2022_PROGRAM_ID,
 } from '@solana/spl-token';
 import { RPC_URL } from '../config';
 import { getConnection } from './helius';
@@ -34,22 +35,42 @@ function makeUmi(wallet) {
 
 export async function burnCNFT(wallet, nft) {
   const umi = makeUmi(wallet);
-  const proof = await getAssetProof(nft.id);
   const { tree, dataHash, creatorHash, leafId } = nft.compression;
+  if (!tree || !dataHash || !creatorHash || leafId == null) {
+    throw new Error('cNFT missing compression metadata');
+  }
 
   // All 32-byte hashes are base58-encoded — reuse PublicKey.toBytes() for decoding
   const toBytes32 = (b58) => Array.from(new PublicKey(b58).toBytes());
 
-  await burnCompressed(umi, {
-    leafOwner:   publicKey(wallet.publicKey.toBase58()),
-    merkleTree:  publicKey(tree),
-    root:        toBytes32(proof.root),
-    dataHash:    toBytes32(dataHash),
-    creatorHash: toBytes32(creatorHash),
-    nonce:       leafId,
-    index:       leafId,
-    proof:       proof.proof.map(p => publicKey(p)),
-  }).sendAndConfirm(umi, { send: { skipPreflight: true } });
+  const attempt = async () => {
+    const proof = await getAssetProof(nft.id);
+    if (!proof?.root || !Array.isArray(proof?.proof)) {
+      throw new Error('Invalid Merkle proof from Helius');
+    }
+    await burnCompressed(umi, {
+      leafOwner:   publicKey(wallet.publicKey.toBase58()),
+      merkleTree:  publicKey(tree),
+      root:        toBytes32(proof.root),
+      dataHash:    toBytes32(dataHash),
+      creatorHash: toBytes32(creatorHash),
+      nonce:       leafId,
+      index:       leafId,
+      proof:       proof.proof.map(p => publicKey(p)),
+    }).sendAndConfirm(umi);
+  };
+
+  try {
+    await attempt();
+  } catch (err) {
+    const msg = String(err?.message ?? err);
+    // ConcurrentMerkleTreeError (0x1771 / 6001) => proof is stale, refetch + retry once
+    if (/0x1771|ConcurrentMerkleTreeError|Invalid root/i.test(msg)) {
+      await attempt();
+    } else {
+      throw err;
+    }
+  }
 }
 
 export async function burnCoreNFT(wallet, nft) {
@@ -74,28 +95,56 @@ export async function burnLegacyNFT(wallet, nft) {
   }).sendAndConfirm(umi);
 }
 
-// Fallback for scam/non-standard NFTs with no valid Metaplex metadata
+// Fallback for scam/non-standard NFTs with no valid Metaplex metadata.
+// Defensive: verify this really is an NFT-shaped asset before burning.
 async function burnRawTokenAccount(wallet, mintAddress) {
   const connection = getConnection();
   const owner = wallet.publicKey;
   const mint = new PublicKey(mintAddress);
 
-  // Look up the actual token account — don't assume it's the ATA
-  const accounts = await connection.getTokenAccountsByOwner(owner, { mint });
+  // 1) Find the user's token account(s) for this mint. Query both token programs.
+  let accounts = await connection.getParsedTokenAccountsByOwner(owner, { mint, programId: TOKEN_PROGRAM_ID });
+  let programId = TOKEN_PROGRAM_ID;
+  if (accounts.value.length === 0) {
+    accounts = await connection.getParsedTokenAccountsByOwner(owner, { mint, programId: TOKEN_2022_PROGRAM_ID });
+    programId = TOKEN_2022_PROGRAM_ID;
+  }
   if (accounts.value.length === 0) throw new Error('No token account found for this NFT');
-  const tokenAccount = accounts.value[0].pubkey;
 
+  // 2) Pick the first account with a positive balance.
+  const match = accounts.value.find(a => {
+    const amt = a.account.data?.parsed?.info?.tokenAmount?.amount;
+    return amt && BigInt(amt) > 0n;
+  });
+  if (!match) throw new Error('All token accounts for this mint are empty');
+
+  const info = match.account.data.parsed.info;
+  const balance = BigInt(info.tokenAmount.amount);
+  const decimals = info.tokenAmount.decimals;
+
+  // 3) Verify NFT shape via mint: decimals=0 AND supply=1 (standard NFT invariants).
+  //    Refuse to burn arbitrary fungibles through this path.
+  const mintInfo = await getMint(connection, mint, 'confirmed', programId);
+  if (mintInfo.decimals !== 0 || decimals !== 0) {
+    throw new Error('Refusing raw-burn: token is not decimals=0');
+  }
+  if (mintInfo.supply !== 1n) {
+    throw new Error(`Refusing raw-burn: mint supply is ${mintInfo.supply}, not 1`);
+  }
+
+  const tokenAccount = match.pubkey;
   const tx = new Transaction();
-  tx.add(createBurnInstruction(tokenAccount, mint, owner, 1n, [], TOKEN_PROGRAM_ID));
-  tx.add(createCloseAccountInstruction(tokenAccount, owner, owner, [], TOKEN_PROGRAM_ID));
+  tx.add(createBurnInstruction(tokenAccount, mint, owner, balance, [], programId));
+  tx.add(createCloseAccountInstruction(tokenAccount, owner, owner, [], programId));
 
-  const { blockhash } = await connection.getLatestBlockhash();
+  const { blockhash, lastValidBlockHeight } = await connection.getLatestBlockhash();
   tx.recentBlockhash = blockhash;
   tx.feePayer = owner;
 
   const signed = await wallet.signTransaction(tx);
   const txid = await connection.sendRawTransaction(signed.serialize());
-  await connection.confirmTransaction(txid, 'confirmed');
+  const conf = await connection.confirmTransaction({ signature: txid, blockhash, lastValidBlockHeight }, 'confirmed');
+  if (conf.value.err) throw new Error(`Raw burn failed: ${JSON.stringify(conf.value.err)}`);
   return txid;
 }
 

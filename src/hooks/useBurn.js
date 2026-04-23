@@ -67,11 +67,16 @@ export function useBurn() {
 
       const balanceAfter = await connection.getBalance(wallet.publicKey);
       const recoveredLamports = Math.max(0, balanceAfter - balanceBefore);
-      console.log('[useBurn] autoBuy:', autoBuy, 'recoveredLamports:', recoveredLamports, 'balanceBefore:', balanceBefore, 'balanceAfter:', balanceAfter);
 
-      if (autoBuy && recoveredLamports > 0) {
+      // Swap size is computed from known rent (selected items), NOT balance delta,
+      // so unrelated inbound transfers during the burn don't get swept into Jupiter.
+      // Subtract a safety buffer for the swap tx fee + WSOL/BASIS ATA rent.
+      const SWAP_FEE_BUFFER_LAMPORTS = 5_000_000; // ~0.005 SOL
+      const swapLamports = Math.max(0, totalRentLamports - SWAP_FEE_BUFFER_LAMPORTS);
+
+      if (autoBuy && swapLamports > 0) {
         setStatus(s => ({ ...s, step: 'buying-basis', progress: 0 }));
-        const txid = await swapSolForBasis(wallet, recoveredLamports);
+        const txid = await swapSolForBasis(wallet, swapLamports);
         allTxids.push(txid);
       }
 

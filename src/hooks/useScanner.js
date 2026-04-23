@@ -9,14 +9,17 @@ export function useScanner() {
     empty: [],
     tokens: [],
     nfts: [],
+    cnfts: [],
   });
 
   const scan = useCallback(async (walletAddress) => {
     setState(s => ({ ...s, loading: true, error: null, scanned: false }));
 
     try {
-      const nfts = await scanNFTs(walletAddress);
-      const nftMints = new Set(nfts.map(n => n.id));
+      const allNfts = await scanNFTs(walletAddress);
+      const nfts  = allNfts.filter(n => !n.compressed);
+      const cnfts = allNfts.filter(n =>  n.compressed);
+      const nftMints = new Set(allNfts.map(n => n.id));
       const { empty, withBalance } = await scanTokenAccounts(walletAddress, nftMints);
 
       setState({
@@ -26,6 +29,7 @@ export function useScanner() {
         empty,
         tokens: withBalance,
         nfts,
+        cnfts,
       });
     } catch (err) {
       setState(s => ({ ...s, loading: false, error: err.message }));
@@ -33,7 +37,7 @@ export function useScanner() {
   }, []);
 
   const reset = useCallback(() => {
-    setState({ loading: false, scanned: false, error: null, empty: [], tokens: [], nfts: [] });
+    setState({ loading: false, scanned: false, error: null, empty: [], tokens: [], nfts: [], cnfts: [] });
   }, []);
 
   return { ...state, scan, reset };

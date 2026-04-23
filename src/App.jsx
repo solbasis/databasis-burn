@@ -10,7 +10,7 @@ import { SOL_PER_LAMPORT } from './config';
 
 export default function App() {
   const wallet = useWallet();
-  const { loading, scanned, error: scanError, empty, tokens, nfts, scan, reset: resetScan } = useScanner();
+  const { loading, scanned, error: scanError, empty, tokens, nfts, cnfts, scan } = useScanner();
   const burnState = useBurn();
 
   const [selected, setSelected] = useState(new Set());
@@ -51,15 +51,16 @@ export default function App() {
   }, [wallet.publicKey, scan]);
 
   const handleBurn = useCallback(async () => {
-    const selectedEmpty = empty.filter(a => selected.has(a.address));
+    const selectedEmpty  = empty.filter(a  => selected.has(a.address));
     const selectedTokens = tokens.filter(a => selected.has(a.address));
-    const selectedNFTs = nfts.filter(a => selected.has(a.id));
+    const selectedNFTs   = nfts.filter(a   => selected.has(a.id));
+    const selectedCNFTs  = cnfts.filter(a  => selected.has(a.id));
 
-    if (selectedEmpty.length + selectedTokens.length + selectedNFTs.length === 0) return;
+    if (selectedEmpty.length + selectedTokens.length + selectedNFTs.length + selectedCNFTs.length === 0) return;
 
     setShowModal(true);
-    await burnState.execute({ wallet, selectedEmpty, selectedTokens, selectedNFTs, autoBuy });
-  }, [wallet, empty, tokens, nfts, selected, autoBuy, burnState]);
+    await burnState.execute({ wallet, selectedEmpty, selectedTokens, selectedNFTs, selectedCNFTs, autoBuy });
+  }, [wallet, empty, tokens, nfts, cnfts, selected, autoBuy, burnState]);
 
   const handleModalClose = useCallback(() => {
     setShowModal(false);
@@ -75,6 +76,7 @@ export default function App() {
     .reduce((sum, a) => sum + a.rentLamports * SOL_PER_LAMPORT, 0);
 
   const selectedCount = selected.size;
+  const totalItems = empty.length + tokens.length + nfts.length + cnfts.length;
 
   return (
     <div className="app">
@@ -96,7 +98,7 @@ export default function App() {
             </p>
             <ul className="hero-features">
               <li>↳ recover ~0.002 SOL per empty account</li>
-              <li>↳ burn tokens & NFTs in bulk</li>
+              <li>↳ burn tokens, NFTs & cNFTs in bulk</li>
               <li>↳ optional auto-buy $BASIS</li>
               <li>↳ 100% free — no fees</li>
             </ul>
@@ -104,16 +106,12 @@ export default function App() {
         ) : (
           <div className="workspace">
             <div className="scan-bar">
-              <button
-                className="btn-scan"
-                onClick={handleScan}
-                disabled={loading}
-              >
+              <button className="btn-scan" onClick={handleScan} disabled={loading}>
                 {loading ? 'scanning…' : scanned ? '↺ rescan' : 'scan wallet'}
               </button>
               {scanned && (
                 <span className="scan-summary">
-                  {empty.length} empty · {tokens.length} tokens · {nfts.length} NFTs
+                  {empty.length} empty · {tokens.length} tokens · {nfts.length} NFTs · {cnfts.length} cNFTs
                 </span>
               )}
             </div>
@@ -126,6 +124,7 @@ export default function App() {
                   empty={empty}
                   tokens={tokens}
                   nfts={nfts}
+                  cnfts={cnfts}
                   selected={selected}
                   onToggle={handleToggle}
                   onSelectAll={handleSelectAll}
@@ -165,18 +164,12 @@ export default function App() {
       <footer className="footer">
         <a href="https://databasis.info" target="_blank" rel="noopener noreferrer">databasis.info</a>
         <span>·</span>
-        <a
-          href={`https://solscan.io/token/A5BJBQUTR5sTzkM89hRDuApWyvgjdXpR7B7rW1r9pump`}
-          target="_blank"
-          rel="noopener noreferrer"
-        >
+        <a href="https://solscan.io/token/A5BJBQUTR5sTzkM89hRDuApWyvgjdXpR7B7rW1r9pump" target="_blank" rel="noopener noreferrer">
           $BASIS
         </a>
       </footer>
 
-      {showModal && (
-        <BurnModal status={burnState} onClose={handleModalClose} />
-      )}
+      {showModal && <BurnModal status={burnState} onClose={handleModalClose} />}
     </div>
   );
 }

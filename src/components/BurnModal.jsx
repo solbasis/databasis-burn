@@ -5,6 +5,7 @@ const STEP_LABELS = {
   closing: 'Closing empty accounts…',
   'burning-tokens': 'Burning tokens…',
   'burning-nfts': 'Burning NFTs…',
+  'burning-cnfts': 'Burning cNFTs…',
   'buying-basis': 'Swapping SOL → $BASIS…',
 };
 

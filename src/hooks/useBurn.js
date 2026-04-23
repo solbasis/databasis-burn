@@ -21,6 +21,7 @@ export function useBurn() {
     selectedEmpty,
     selectedTokens,
     selectedNFTs,
+    selectedCNFTs = [],
     autoBuy,
   }) => {
     setStatus({ running: true, step: 'preparing', progress: 0, done: false, error: null, recoveredLamports: 0, txids: [] });
@@ -53,6 +54,13 @@ export function useBurn() {
       if (selectedNFTs.length > 0) {
         setStatus(s => ({ ...s, step: 'burning-nfts', progress: 0 }));
         await burnNFTs(wallet, selectedNFTs, p =>
+          setStatus(s => ({ ...s, progress: p }))
+        );
+      }
+
+      if (selectedCNFTs.length > 0) {
+        setStatus(s => ({ ...s, step: 'burning-cnfts', progress: 0 }));
+        await burnNFTs(wallet, selectedCNFTs, p =>
           setStatus(s => ({ ...s, progress: p }))
         );
       }

@@ -1,19 +1,17 @@
 import { useState } from 'react';
 import { AccountRow } from './AccountRow';
 
-export function ResultsTabs({ empty, tokens, nfts, selected, onToggle, onSelectAll, onClearAll }) {
+export function ResultsTabs({ empty, tokens, nfts, cnfts, selected, onToggle, onSelectAll, onClearAll }) {
   const [tab, setTab] = useState('empty');
 
   const tabs = [
-    { id: 'empty', label: 'Empty', count: empty.length, items: empty, type: 'empty' },
+    { id: 'empty',  label: 'Empty',  count: empty.length,  items: empty,  type: 'empty' },
     { id: 'tokens', label: 'Tokens', count: tokens.length, items: tokens, type: 'token' },
-    { id: 'nfts', label: 'NFTs', count: nfts.length, items: nfts, type: 'nft' },
+    { id: 'nfts',   label: 'NFTs',   count: nfts.length,   items: nfts,   type: 'nft'   },
+    { id: 'cnfts',  label: 'cNFTs',  count: cnfts.length,  items: cnfts,  type: 'nft'   },
   ];
 
   const active = tabs.find(t => t.id === tab);
-  const allSelectedInTab = active.items.every(item =>
-    selected.has(active.type === 'nft' ? item.id : item.address)
-  );
 
   return (
     <div className="results-tabs">

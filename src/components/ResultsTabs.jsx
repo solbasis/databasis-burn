@@ -12,7 +12,7 @@ export function ResultsTabs({ empty, tokens, nfts, selected, onToggle, onSelectA
 
   const active = tabs.find(t => t.id === tab);
   const allSelectedInTab = active.items.every(item =>
-    selected.has(type === 'nft' ? item.id : item.address)
+    selected.has(active.type === 'nft' ? item.id : item.address)
   );
 
   return (

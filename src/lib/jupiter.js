@@ -32,8 +32,11 @@ export async function swapSolForBasis(wallet, lamports) {
     }),
   });
 
-  if (!res.ok) throw new Error('Failed to get Jupiter swap transaction');
-  const { swapTransaction } = await res.json();
+  const swapJson = await res.json();
+  if (!res.ok || swapJson.error) {
+    throw new Error(swapJson.error ?? 'Failed to get Jupiter swap transaction');
+  }
+  const { swapTransaction } = swapJson;
 
   const txBuffer = Buffer.from(swapTransaction, 'base64');
   const tx = VersionedTransaction.deserialize(txBuffer);
@@ -41,7 +44,8 @@ export async function swapSolForBasis(wallet, lamports) {
   const signed = await wallet.signTransaction(tx);
 
   const connection = getConnection();
-  const txid = await connection.sendRawTransaction(signed.serialize());
-  await connection.confirmTransaction(txid, 'confirmed');
+  const { blockhash, lastValidBlockHeight } = await connection.getLatestBlockhash();
+  const txid = await connection.sendRawTransaction(signed.serialize(), { skipPreflight: true });
+  await connection.confirmTransaction({ signature: txid, blockhash, lastValidBlockHeight }, 'confirmed');
   return txid;
 }

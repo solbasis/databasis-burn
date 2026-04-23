@@ -15,7 +15,7 @@ export function AccountRow({ item, type, selected, onToggle }) {
           <>
             {item.image && <img src={item.image} alt={item.name} className="nft-thumb" />}
             <span className="account-name">{item.name}</span>
-            <span className="account-tag">{item.interface === 'MplCoreAsset' ? 'core' : item.interface === 'ProgrammableNFT' ? 'pNFT' : 'NFT'}</span>
+            <span className="account-tag">{item.compressed ? 'cNFT' : item.interface === 'MplCoreAsset' ? 'core' : item.interface === 'ProgrammableNFT' ? 'pNFT' : 'NFT'}</span>
           </>
         ) : (
           <>

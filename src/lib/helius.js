@@ -64,6 +64,19 @@ export async function scanTokenAccounts(walletAddress, nftMints = new Set()) {
   return { empty, withBalance };
 }
 
+export async function getAssetProof(assetId) {
+  const res = await fetch(HELIUS_DAS, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      jsonrpc: '2.0', id: 'proof', method: 'getAssetProof',
+      params: { id: assetId },
+    }),
+  });
+  const json = await res.json();
+  return json.result;
+}
+
 async function fetchTokenMetadata(mints) {
   const body = {
     jsonrpc: '2.0', id: 'meta', method: 'getAssetBatch',
@@ -137,5 +150,11 @@ export async function scanNFTs(walletAddress) {
       interface: a.interface,
       collection: a.grouping?.find(g => g.group_key === 'collection')?.group_value ?? null,
       compressed: a.compression?.compressed ?? false,
+      compression: a.compression?.compressed ? {
+        tree:        a.compression.tree,
+        dataHash:    a.compression.data_hash,
+        creatorHash: a.compression.creator_hash,
+        leafId:      a.compression.leaf_id,
+      } : null,
     }));
 }

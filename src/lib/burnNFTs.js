@@ -7,7 +7,9 @@ import {
   mplTokenMetadata,
   TokenStandard,
 } from '@metaplex-foundation/mpl-token-metadata';
+import { burn as burnCompressed, mplBubblegum } from '@metaplex-foundation/mpl-bubblegum';
 import { publicKey } from '@metaplex-foundation/umi';
+import { getAssetProof } from './helius';
 import {
   Connection,
   PublicKey,
@@ -26,7 +28,28 @@ function makeUmi(wallet) {
   return createUmi(RPC_URL)
     .use(mplCore())
     .use(mplTokenMetadata())
+    .use(mplBubblegum())
     .use(walletAdapterIdentity(wallet));
+}
+
+export async function burnCNFT(wallet, nft) {
+  const umi = makeUmi(wallet);
+  const proof = await getAssetProof(nft.id);
+  const { tree, dataHash, creatorHash, leafId } = nft.compression;
+
+  // All 32-byte hashes are base58-encoded — reuse PublicKey.toBytes() for decoding
+  const toBytes32 = (b58) => Array.from(new PublicKey(b58).toBytes());
+
+  await burnCompressed(umi, {
+    leafOwner:   publicKey(wallet.publicKey.toBase58()),
+    merkleTree:  publicKey(tree),
+    root:        toBytes32(proof.root),
+    dataHash:    toBytes32(dataHash),
+    creatorHash: toBytes32(creatorHash),
+    nonce:       leafId,
+    index:       leafId,
+    proof:       proof.proof.map(p => publicKey(p)),
+  }).sendAndConfirm(umi);
 }
 
 export async function burnCoreNFT(wallet, nft) {
@@ -82,7 +105,9 @@ export async function burnNFTs(wallet, nfts, onProgress) {
   for (let i = 0; i < nfts.length; i++) {
     const nft = nfts[i];
     try {
-      if (nft.interface === 'MplCoreAsset') {
+      if (nft.compressed) {
+        await burnCNFT(wallet, nft);
+      } else if (nft.interface === 'MplCoreAsset') {
         await burnCoreNFT(wallet, nft);
       } else {
         try {

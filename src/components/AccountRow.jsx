@@ -1,6 +1,7 @@
 import { SOL_PER_LAMPORT } from '../config';
 
 export function AccountRow({ item, type, selected, onToggle }) {
+  const isNftLike = type === 'nft' || type === 'cnft';
   const rentSol = (item.rentLamports * SOL_PER_LAMPORT).toFixed(6);
 
   return (
@@ -11,7 +12,7 @@ export function AccountRow({ item, type, selected, onToggle }) {
         onChange={() => onToggle(item)}
       />
       <div className="account-row-info">
-        {type === 'nft' ? (
+        {isNftLike ? (
           <>
             {item.image && <img src={item.image} alt={item.name} className="nft-thumb" />}
             <span className="account-name">{item.name}</span>
@@ -38,7 +39,7 @@ export function AccountRow({ item, type, selected, onToggle }) {
           </>
         )}
       </div>
-      {type !== 'nft' && (
+      {!isNftLike && (
         <span className="account-rent">+{rentSol} SOL</span>
       )}
     </label>

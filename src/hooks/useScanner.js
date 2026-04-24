@@ -36,9 +36,5 @@ export function useScanner() {
     }
   }, []);
 
-  const reset = useCallback(() => {
-    setState({ loading: false, scanned: false, error: null, empty: [], tokens: [], nfts: [], cnfts: [] });
-  }, []);
-
-  return { ...state, scan, reset };
+  return { ...state, scan };
 }

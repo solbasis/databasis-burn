@@ -1,6 +1,7 @@
 import { VersionedTransaction } from '@solana/web3.js';
 import { BASIS_MINT, JUPITER_QUOTE_API, JUPITER_SWAP_API } from '../config';
 import { getConnection } from './helius';
+import { sendRawWithRetry } from './send';
 
 const SOL_MINT = 'So11111111111111111111111111111111111111112';
 const DEV = import.meta.env.DEV;
@@ -60,7 +61,7 @@ export async function swapSolForBasis(wallet, lamports) {
 
   const connection = getConnection();
   const { blockhash, lastValidBlockHeight } = await connection.getLatestBlockhash();
-  const txid = await connection.sendRawTransaction(signed.serialize(), { skipPreflight: true });
+  const txid = await sendRawWithRetry(connection, signed.serialize());
   if (DEV) console.log('[jupiter] swap sent', txid);
   const confirmation = await connection.confirmTransaction({ signature: txid, blockhash, lastValidBlockHeight }, 'confirmed');
   if (confirmation.value.err) throw new Error(`Swap failed on-chain: ${JSON.stringify(confirmation.value.err)}`);

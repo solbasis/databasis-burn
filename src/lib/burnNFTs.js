@@ -11,7 +11,6 @@ import { burn as burnCompressed, mplBubblegum } from '@metaplex-foundation/mpl-b
 import { publicKey } from '@metaplex-foundation/umi';
 import { getAssetProof } from './helius';
 import {
-  Connection,
   PublicKey,
   Transaction,
 } from '@solana/web3.js';
@@ -24,6 +23,7 @@ import {
 } from '@solana/spl-token';
 import { RPC_URL } from '../config';
 import { getConnection } from './helius';
+import { sendRawWithRetry } from './send';
 
 function makeUmi(wallet) {
   return createUmi(RPC_URL)
@@ -33,8 +33,7 @@ function makeUmi(wallet) {
     .use(walletAdapterIdentity(wallet));
 }
 
-export async function burnCNFT(wallet, nft) {
-  const umi = makeUmi(wallet);
+export async function burnCNFT(umi, wallet, nft) {
   const { tree, dataHash, creatorHash, leafId } = nft.compression;
   if (!tree || !dataHash || !creatorHash || leafId == null) {
     throw new Error('cNFT missing compression metadata');
@@ -73,16 +72,14 @@ export async function burnCNFT(wallet, nft) {
   }
 }
 
-export async function burnCoreNFT(wallet, nft) {
-  const umi = makeUmi(wallet);
+export async function burnCoreNFT(umi, nft) {
   await burnCoreV1(umi, {
     asset: publicKey(nft.id),
     ...(nft.collection ? { collection: publicKey(nft.collection) } : {}),
   }).sendAndConfirm(umi);
 }
 
-export async function burnLegacyNFT(wallet, nft) {
-  const umi = makeUmi(wallet);
+export async function burnLegacyNFT(umi, nft) {
   const collectionMetadata = nft.collection
     ? findMetadataPda(umi, { mint: publicKey(nft.collection) })
     : undefined;
@@ -142,7 +139,7 @@ async function burnRawTokenAccount(wallet, mintAddress) {
   tx.feePayer = owner;
 
   const signed = await wallet.signTransaction(tx);
-  const txid = await connection.sendRawTransaction(signed.serialize());
+  const txid = await sendRawWithRetry(connection, signed.serialize());
   const conf = await connection.confirmTransaction({ signature: txid, blockhash, lastValidBlockHeight }, 'confirmed');
   if (conf.value.err) throw new Error(`Raw burn failed: ${JSON.stringify(conf.value.err)}`);
   return txid;
@@ -155,16 +152,20 @@ export async function burnNFTs(wallet, nfts, onProgress) {
   const txids = [];
   const failures = [];
 
+  // One Umi instance per batch (each construction spins up an RPC client and
+  // loads multiple plugins — not cheap to redo per NFT).
+  const umi = makeUmi(wallet);
+
   for (let i = 0; i < nfts.length; i++) {
     const nft = nfts[i];
     try {
       if (nft.compressed) {
-        await burnCNFT(wallet, nft);
+        await burnCNFT(umi, wallet, nft);
       } else if (nft.interface === 'MplCoreAsset') {
-        await burnCoreNFT(wallet, nft);
+        await burnCoreNFT(umi, nft);
       } else {
         try {
-          await burnLegacyNFT(wallet, nft);
+          await burnLegacyNFT(umi, nft);
         } catch (inner) {
           // Scam/non-standard NFT — try raw SPL Token burn fallback.
           // If that also fails, surface the fallback's error (more actionable

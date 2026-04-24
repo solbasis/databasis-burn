@@ -8,6 +8,7 @@ import {
   createBurnInstruction,
 } from '@solana/spl-token';
 import { getConnection } from './helius';
+import { sendRawWithRetry } from './send';
 
 const PRIORITY_FEE_MICROLAMPORTS = 5000;
 // Legacy Transaction size cap is 1232 bytes. Conservative batch caps leave
@@ -60,7 +61,8 @@ function buildSizedTx({ batch, owner, blockhash, cuPerItem, addItems }) {
 
 async function sendAndConfirm(connection, wallet, tx, { blockhash, lastValidBlockHeight }, label) {
   const signed = await wallet.signTransaction(tx);
-  const txid = await connection.sendRawTransaction(signed.serialize());
+  const raw = signed.serialize();
+  const txid = await sendRawWithRetry(connection, raw);
   const conf = await connection.confirmTransaction(
     { signature: txid, blockhash, lastValidBlockHeight },
     'confirmed'

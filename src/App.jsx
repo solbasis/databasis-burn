@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useMemo } from 'react';
 import { useWallet } from '@solana/wallet-adapter-react';
 import { WalletButton } from './components/WalletButton';
 import { ResultsTabs } from './components/ResultsTabs';
@@ -7,6 +7,13 @@ import { BurnModal } from './components/BurnModal';
 import { useScanner } from './hooks/useScanner';
 import { useBurn } from './hooks/useBurn';
 import { SOL_PER_LAMPORT } from './config';
+
+// Selection keys are namespaced as `${type}:${id}` so an NFT mint and a token
+// account address can never collide in the selection Set.
+function makeKey(item, type) {
+  const id = (type === 'nft' || type === 'cnft') ? item.id : item.address;
+  return `${type}:${id}`;
+}
 
 export default function App() {
   const wallet = useWallet();
@@ -17,10 +24,8 @@ export default function App() {
   const [autoBuy, setAutoBuy] = useState(false);
   const [showModal, setShowModal] = useState(false);
 
-  const getKey = (item, type) => (type === 'nft' ? item.id : item.address);
-
   const handleToggle = useCallback((item, type) => {
-    const key = getKey(item, type);
+    const key = makeKey(item, type);
     setSelected(prev => {
       const next = new Set(prev);
       next.has(key) ? next.delete(key) : next.add(key);
@@ -31,7 +36,7 @@ export default function App() {
   const handleSelectAll = useCallback((items, type) => {
     setSelected(prev => {
       const next = new Set(prev);
-      items.forEach(item => next.add(getKey(item, type)));
+      items.forEach(item => next.add(makeKey(item, type)));
       return next;
     });
   }, []);
@@ -39,7 +44,7 @@ export default function App() {
   const handleClearAll = useCallback((items, type) => {
     setSelected(prev => {
       const next = new Set(prev);
-      items.forEach(item => next.delete(getKey(item, type)));
+      items.forEach(item => next.delete(makeKey(item, type)));
       return next;
     });
   }, []);
@@ -50,33 +55,42 @@ export default function App() {
     scan(wallet.publicKey.toBase58());
   }, [wallet.publicKey, scan]);
 
-  const handleBurn = useCallback(async () => {
-    const selectedEmpty  = empty.filter(a  => selected.has(a.address));
-    const selectedTokens = tokens.filter(a => selected.has(a.address));
-    const selectedNFTs   = nfts.filter(a   => selected.has(a.id));
-    const selectedCNFTs  = cnfts.filter(a  => selected.has(a.id));
+  // Pre-filter selected items once per render, keyed by type so the filter
+  // only matches when the type prefix also matches.
+  const selectedLists = useMemo(() => ({
+    empty:  empty .filter(a => selected.has(`empty:${a.address}`)),
+    tokens: tokens.filter(a => selected.has(`token:${a.address}`)),
+    nfts:   nfts  .filter(a => selected.has(`nft:${a.id}`)),
+    cnfts:  cnfts .filter(a => selected.has(`cnft:${a.id}`)),
+  }), [empty, tokens, nfts, cnfts, selected]);
 
+  const recoveredSol = useMemo(
+    () => [...selectedLists.empty, ...selectedLists.tokens]
+      .reduce((sum, a) => sum + a.rentLamports * SOL_PER_LAMPORT, 0),
+    [selectedLists.empty, selectedLists.tokens]
+  );
+
+  const selectedCount = selected.size;
+
+  const handleBurn = useCallback(async () => {
+    const { empty: selectedEmpty, tokens: selectedTokens, nfts: selectedNFTs, cnfts: selectedCNFTs } = selectedLists;
     if (selectedEmpty.length + selectedTokens.length + selectedNFTs.length + selectedCNFTs.length === 0) return;
 
     setShowModal(true);
     await burnState.execute({ wallet, selectedEmpty, selectedTokens, selectedNFTs, selectedCNFTs, autoBuy });
-  }, [wallet, empty, tokens, nfts, cnfts, selected, autoBuy, burnState]);
+  }, [wallet, selectedLists, autoBuy, burnState]);
 
   const handleModalClose = useCallback(() => {
+    // Capture before reset(): setStatus flushes synchronously but relying on
+    // that coupling is fragile — read first, then reset.
+    const wasDone = burnState.done;
     setShowModal(false);
     burnState.reset();
-    if (burnState.done && wallet.publicKey) {
+    if (wasDone && wallet.publicKey) {
       setSelected(new Set());
       scan(wallet.publicKey.toBase58());
     }
   }, [burnState, wallet.publicKey, scan]);
-
-  const recoveredSol = [...empty, ...tokens]
-    .filter(a => selected.has(a.address))
-    .reduce((sum, a) => sum + a.rentLamports * SOL_PER_LAMPORT, 0);
-
-  const selectedCount = selected.size;
-  const totalItems = empty.length + tokens.length + nfts.length + cnfts.length;
 
   return (
     <div className="app">
@@ -129,6 +143,7 @@ export default function App() {
                   onToggle={handleToggle}
                   onSelectAll={handleSelectAll}
                   onClearAll={handleClearAll}
+                  disabled={burnState.running}
                 />
 
                 <div className="action-bar">

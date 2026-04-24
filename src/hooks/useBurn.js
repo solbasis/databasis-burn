@@ -1,8 +1,9 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useRef } from 'react';
 import { closeEmptyAccounts, burnTokenAccounts } from '../lib/solana';
 import { burnNFTs } from '../lib/burnNFTs';
-import { swapSolForBasis } from '../lib/jupiter';
+import { getQuote, executeSwap } from '../lib/jupiter';
 import { getConnection } from '../lib/helius';
+import { BASIS_DECIMALS } from '../config';
 
 export function useBurn() {
   const [status, setStatus] = useState({
@@ -14,7 +15,16 @@ export function useBurn() {
     recoveredLamports: 0,
     txids: [],
     failures: [],
+    // When set, UI shows a swap-confirm screen instead of the progress bar.
+    // Shape: { inLamports, outUi, minUi } — UI-ready numbers only; the raw
+    // quote stays scoped to execute() so we can't accidentally render it.
+    pendingSwap: null,
   });
+
+  // Resolver for the user's swap-confirm decision. Stashed on a ref so
+  // execute() can `await` a Promise while confirmSwap/skipSwap resolve it
+  // from separate React callbacks.
+  const swapDecisionRef = useRef(null);
 
   const execute = useCallback(async ({
     wallet,
@@ -24,7 +34,7 @@ export function useBurn() {
     selectedCNFTs = [],
     autoBuy,
   }) => {
-    setStatus({ running: true, step: 'preparing', progress: 0, done: false, error: null, recoveredLamports: 0, txids: [], failures: [] });
+    setStatus({ running: true, step: 'preparing', progress: 0, done: false, error: null, recoveredLamports: 0, txids: [], failures: [], pendingSwap: null });
 
     // Live progress state — committed incrementally so that on error the UI
     // still shows what did succeed.
@@ -89,12 +99,36 @@ export function useBurn() {
       const swapLamports = Math.max(0, totalRentLamports - SWAP_FEE_BUFFER_LAMPORTS);
 
       if (autoBuy && swapLamports > 0) {
-        commit({ step: 'buying-basis', progress: 0 });
+        // Two-phase: fetch quote → show preview → user approves → execute.
+        // A failed quote/swap shouldn't void the whole burn (rent is recovered
+        // already), so we wrap the whole phase and push a failure on any throw.
+        commit({ step: 'quoting-swap', progress: 0 });
         try {
-          const txid = await swapSolForBasis(wallet, swapLamports);
-          allTxids.push(txid);
+          const quote = await getQuote(swapLamports);
+          const outUi = Number(quote.outAmount) / 10 ** BASIS_DECIMALS;
+          const minUi = Number(quote.otherAmountThreshold) / 10 ** BASIS_DECIMALS;
+
+          setStatus(s => ({
+            ...s,
+            step: 'awaiting-swap',
+            pendingSwap: { inLamports: swapLamports, outUi, minUi },
+          }));
+
+          const approved = await new Promise(resolve => {
+            swapDecisionRef.current = resolve;
+          });
+          swapDecisionRef.current = null;
+
+          // Clear the preview so BurnModal returns to the progress UI.
+          setStatus(s => ({ ...s, pendingSwap: null }));
+
+          if (approved) {
+            commit({ step: 'buying-basis', progress: 0 });
+            const txid = await executeSwap(wallet, quote);
+            allTxids.push(txid);
+          }
+          // Skip: user saw the preview and declined — fall through silently.
         } catch (swapErr) {
-          // Swap failure shouldn't void the whole burn — rent is already recovered.
           allFailures.push({
             id: 'auto-buy',
             name: 'Auto-buy $BASIS',
@@ -112,6 +146,7 @@ export function useBurn() {
         recoveredLamports,
         txids: [...allTxids],
         failures: [...allFailures],
+        pendingSwap: null,
       });
     } catch (err) {
       // Preserve partial progress (txids + failures) so the modal can show
@@ -119,6 +154,7 @@ export function useBurn() {
       setStatus(s => ({
         ...s,
         running: false,
+        pendingSwap: null,
         error: err?.message ?? String(err),
         txids: [...allTxids],
         failures: [...allFailures],
@@ -126,9 +162,24 @@ export function useBurn() {
     }
   }, []);
 
-  const reset = useCallback(() => {
-    setStatus({ running: false, step: null, progress: 0, done: false, error: null, recoveredLamports: 0, txids: [], failures: [] });
+  const confirmSwap = useCallback(() => {
+    swapDecisionRef.current?.(true);
   }, []);
 
-  return { ...status, execute, reset };
+  const skipSwap = useCallback(() => {
+    swapDecisionRef.current?.(false);
+  }, []);
+
+  const reset = useCallback(() => {
+    // Defensive: if the user somehow dismisses while awaiting a swap decision
+    // (shouldn't be reachable via UI, but keeps execute() from hanging forever),
+    // resolve as "skip" so the finalize path runs.
+    if (swapDecisionRef.current) {
+      swapDecisionRef.current(false);
+      swapDecisionRef.current = null;
+    }
+    setStatus({ running: false, step: null, progress: 0, done: false, error: null, recoveredLamports: 0, txids: [], failures: [], pendingSwap: null });
+  }, []);
+
+  return { ...status, execute, reset, confirmSwap, skipSwap };
 }

@@ -25,9 +25,11 @@ export async function getQuote(lamports) {
   return json;
 }
 
-export async function swapSolForBasis(wallet, lamports) {
-  const quote = await getQuote(lamports);
-
+// Execute an already-quoted swap. Caller has shown the user the expected
+// output, so we just build+sign+send without re-quoting. Re-quoting here
+// would change the output amount silently — exactly what we were trying
+// to avoid by showing a preview.
+export async function executeSwap(wallet, quote) {
   const res = await fetch(JUPITER_SWAP_API, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },

@@ -184,7 +184,14 @@ export default function App() {
         </a>
       </footer>
 
-      {showModal && <BurnModal status={burnState} onClose={handleModalClose} />}
+      {showModal && (
+        <BurnModal
+          status={burnState}
+          onClose={handleModalClose}
+          onConfirmSwap={burnState.confirmSwap}
+          onSkipSwap={burnState.skipSwap}
+        />
+      )}
     </div>
   );
 }

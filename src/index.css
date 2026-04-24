@@ -666,6 +666,62 @@ a:hover { color: var(--g-bright); text-decoration: underline; }
 .failure-name { color: var(--text-soft); }
 .failure-error { color: var(--neg); opacity: 0.75; word-break: break-word; }
 
+/* ── Swap confirm ──────────────────────────────────────── */
+.swap-confirm {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 14px 16px;
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  border-radius: var(--r-sm);
+}
+.swap-confirm-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  font-size: 0.78rem;
+  gap: 12px;
+}
+.swap-confirm-label {
+  color: var(--text-mute);
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  font-size: 0.68rem;
+}
+.swap-confirm-value {
+  color: var(--text);
+  font-family: var(--mono);
+  font-weight: 500;
+}
+.swap-confirm-value.pos { color: var(--pos); }
+
+.swap-confirm-actions {
+  display: flex;
+  gap: 10px;
+  justify-content: flex-end;
+  margin-top: 4px;
+}
+.btn-secondary {
+  padding: 7px 18px;
+  font-family: var(--mono);
+  font-size: 0.75rem;
+  font-weight: 500;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  background: transparent;
+  color: var(--text-soft);
+  border: 1px solid var(--border-hi);
+  cursor: pointer;
+  border-radius: var(--r-sm);
+  transition: background .15s, border-color .15s, color .15s;
+}
+.btn-secondary:hover {
+  background: rgba(255,255,255,.04);
+  color: var(--text);
+  border-color: var(--border-act);
+}
+
 /* ── Footer ────────────────────────────────────────────── */
 .footer {
   display: flex;

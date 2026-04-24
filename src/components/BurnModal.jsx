@@ -6,16 +6,64 @@ const STEP_LABELS = {
   'burning-tokens': 'Burning tokens…',
   'burning-nfts': 'Burning NFTs…',
   'burning-cnfts': 'Burning cNFTs…',
+  'quoting-swap': 'Fetching swap quote…',
   'buying-basis': 'Swapping SOL → $BASIS…',
 };
 
-export function BurnModal({ status, onClose }) {
-  const { running, step, progress, done, error, recoveredLamports, txids, failures = [] } = status;
+// Compact formatter: tiny balances keep precision, big numbers get grouping.
+// Jupiter returns BASIS as a 6-decimal number — raw amount / 1e6 = UI amount.
+function fmtBasis(n) {
+  if (!Number.isFinite(n)) return '—';
+  if (n < 1) return n.toFixed(4);
+  if (n < 1000) return n.toFixed(2);
+  return Math.round(n).toLocaleString('en-US');
+}
+
+export function BurnModal({ status, onClose, onConfirmSwap, onSkipSwap }) {
+  const { running, step, progress, done, error, recoveredLamports, txids, failures = [], pendingSwap } = status;
+
+  // Precedence:
+  //   pendingSwap → confirm screen (blocks the progress UI)
+  //   running     → progress UI
+  //   done/error  → result UI
+  // We only let the backdrop dismiss when the flow is actually finished.
+  const dismissable = (done || error) && !pendingSwap;
 
   return (
-    <div className="modal-overlay" onClick={done || error ? onClose : undefined}>
+    <div className="modal-overlay" onClick={dismissable ? onClose : undefined}>
       <div className="modal" onClick={e => e.stopPropagation()}>
-        {running && (
+        {pendingSwap && (
+          <>
+            <h2 className="modal-title fire">confirm swap</h2>
+            <p className="modal-step">review before signing</p>
+            <div className="swap-confirm">
+              <div className="swap-confirm-row">
+                <span className="swap-confirm-label">spend</span>
+                <span className="swap-confirm-value">
+                  {(pendingSwap.inLamports * SOL_PER_LAMPORT).toFixed(6)} SOL
+                </span>
+              </div>
+              <div className="swap-confirm-row">
+                <span className="swap-confirm-label">receive ≈</span>
+                <span className="swap-confirm-value pos">
+                  {fmtBasis(pendingSwap.outUi)} $BASIS
+                </span>
+              </div>
+              <div className="swap-confirm-row">
+                <span className="swap-confirm-label">min (5% slippage)</span>
+                <span className="swap-confirm-value">
+                  {fmtBasis(pendingSwap.minUi)} $BASIS
+                </span>
+              </div>
+            </div>
+            <div className="swap-confirm-actions">
+              <button className="btn-secondary" onClick={onSkipSwap}>skip</button>
+              <button className="btn-primary" onClick={onConfirmSwap}>approve</button>
+            </div>
+          </>
+        )}
+
+        {!pendingSwap && running && (
           <>
             <h2 className="modal-title fire">burning…</h2>
             <p className="modal-step">{STEP_LABELS[step] ?? step}</p>

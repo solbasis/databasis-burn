@@ -16,7 +16,7 @@ function makeKey(item, type) {
 
 export default function App() {
   const wallet = useWallet();
-  const { loading, scanned, error: scanError, empty, tokens, nfts, cnfts, scan } = useScanner();
+  const { loading, scanned, error: scanError, empty, tokens, nfts, cnfts, scan, prune } = useScanner();
   const burnState = useBurn();
 
   const [selected, setSelected] = useState(new Set());
@@ -81,14 +81,19 @@ export default function App() {
   const handleModalClose = useCallback(() => {
     // Capture before reset(): setStatus flushes synchronously but relying on
     // that coupling is fragile — read first, then reset.
-    const wasDone = burnState.done;
+    const succeeded = burnState.succeeded;
     setShowModal(false);
     burnState.reset();
-    if (wasDone && wallet.publicKey) {
+    // Strip burned items from the UI immediately. We deliberately do NOT
+    // auto-rescan here: Helius DAS has a 2–3s indexing lag, so an immediate
+    // rescan often returns the burned cNFT as still owned and snaps it back
+    // into view. The manual "↺ rescan" button is there when users want an
+    // authoritative refresh a few seconds later.
+    if (wallet.publicKey) {
       setSelected(new Set());
-      scan(wallet.publicKey.toBase58());
+      prune(succeeded);
     }
-  }, [burnState, wallet.publicKey, scan]);
+  }, [burnState, wallet.publicKey, prune]);
 
   return (
     <div className="app">

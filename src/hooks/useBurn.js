@@ -7,6 +7,10 @@ import { getConnection } from '../lib/helius';
 // its result correctly: cNFT-only runs don't recover rent and shouldn't be
 // labelled "recovered X SOL".
 const EMPTY_COUNTS = { empty: 0, tokens: 0, nfts: 0, cnfts: 0 };
+// Separately from `txids` (which the modal renders as solscan links), we also
+// need the actual asset addresses / ids that landed, so the UI can strip them
+// from the scan state immediately without waiting for DAS to re-index.
+const EMPTY_SUCCEEDED = { empty: [], tokens: [], nfts: [], cnfts: [] };
 
 export function useBurn() {
   const [status, setStatus] = useState({
@@ -19,6 +23,7 @@ export function useBurn() {
     txids: [],
     failures: [],
     attempted: EMPTY_COUNTS,
+    succeeded: EMPTY_SUCCEEDED,
   });
 
   const execute = useCallback(async ({
@@ -34,18 +39,23 @@ export function useBurn() {
       nfts:   selectedNFTs.length,
       cnfts:  selectedCNFTs.length,
     };
-    setStatus({ running: true, step: 'preparing', progress: 0, done: false, error: null, recoveredLamports: 0, txids: [], failures: [], attempted });
+    setStatus({ running: true, step: 'preparing', progress: 0, done: false, error: null, recoveredLamports: 0, txids: [], failures: [], attempted, succeeded: EMPTY_SUCCEEDED });
 
     // Live progress state — committed incrementally so that on error the UI
     // still shows what did succeed.
     const allTxids = [];
     const allFailures = [];
+    // Per-category asset-id accumulation (distinct from allTxids, which mixes
+    // blockchain tx sigs for empty/tokens with asset ids for NFTs/cNFTs). Used
+    // by the UI to prune scan state optimistically post-burn.
+    const succeeded = { empty: [], tokens: [], nfts: [], cnfts: [] };
 
     const commit = (patch) => setStatus(s => ({
       ...s,
       ...patch,
       txids: [...allTxids],
       failures: [...allFailures],
+      succeeded: { ...succeeded },
     }));
 
     try {
@@ -58,6 +68,9 @@ export function useBurn() {
           setStatus(s => ({ ...s, progress: p }))
         );
         allTxids.push(...txids);
+        // closeEmptyAccounts throws on any batch failure, so reaching here
+        // means every selected account landed — record all as succeeded.
+        succeeded.empty = selectedEmpty.map(a => a.address);
       }
 
       if (selectedTokens.length > 0) {
@@ -66,6 +79,7 @@ export function useBurn() {
           setStatus(s => ({ ...s, progress: p }))
         );
         allTxids.push(...txids);
+        succeeded.tokens = selectedTokens.map(a => a.address);
       }
 
       if (selectedNFTs.length > 0) {
@@ -75,6 +89,8 @@ export function useBurn() {
         );
         allTxids.push(...txids);
         allFailures.push(...failures);
+        // burnNFTs.txids is the list of asset ids that burned successfully.
+        succeeded.nfts = [...txids];
       }
 
       if (selectedCNFTs.length > 0) {
@@ -85,6 +101,7 @@ export function useBurn() {
         allTxids.push(...txids);
         // Tag cNFT failures so the modal can split per-category counts.
         allFailures.push(...failures.map(f => ({ ...f, type: 'cnft' })));
+        succeeded.cnfts = [...txids];
       }
 
       const balanceAfter = await connection.getBalance(wallet.publicKey);
@@ -100,22 +117,25 @@ export function useBurn() {
         txids: [...allTxids],
         failures: [...allFailures],
         attempted,
+        succeeded: { ...succeeded },
       });
     } catch (err) {
-      // Preserve partial progress (txids + failures) so the modal can show
-      // "3 of 5 succeeded, then error X" instead of wiping the results.
+      // Preserve partial progress (txids + failures + succeeded) so the modal
+      // can show "3 of 5 succeeded, then error X" and the UI can still prune
+      // the partial wins from the scan state.
       setStatus(s => ({
         ...s,
         running: false,
         error: err?.message ?? String(err),
         txids: [...allTxids],
         failures: [...allFailures],
+        succeeded: { ...succeeded },
       }));
     }
   }, []);
 
   const reset = useCallback(() => {
-    setStatus({ running: false, step: null, progress: 0, done: false, error: null, recoveredLamports: 0, txids: [], failures: [], attempted: EMPTY_COUNTS });
+    setStatus({ running: false, step: null, progress: 0, done: false, error: null, recoveredLamports: 0, txids: [], failures: [], attempted: EMPTY_COUNTS, succeeded: EMPTY_SUCCEEDED });
   }, []);
 
   return { ...status, execute, reset };

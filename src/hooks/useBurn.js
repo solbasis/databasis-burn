@@ -104,7 +104,7 @@ export function useBurn() {
         // already), so we wrap the whole phase and push a failure on any throw.
         commit({ step: 'quoting-swap', progress: 0 });
         try {
-          const quote = await getQuote(swapLamports);
+          const quote = await getQuote(swapLamports, wallet.publicKey.toBase58());
           const outUi = Number(quote.outAmount) / 10 ** BASIS_DECIMALS;
           const minUi = Number(quote.otherAmountThreshold) / 10 ** BASIS_DECIMALS;
 

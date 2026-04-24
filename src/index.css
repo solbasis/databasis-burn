@@ -475,63 +475,6 @@ a:hover { color: var(--g-bright); text-decoration: underline; }
   gap: 12px;
 }
 
-/* ── Auto Buy Toggle ───────────────────────────────────── */
-.autobuy-toggle {
-  display: flex;
-  align-items: center;
-  gap: 14px;
-  padding: 13px 16px;
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: var(--r-sm);
-  cursor: pointer;
-  transition: border-color .15s, background .15s;
-}
-.autobuy-toggle:hover { border-color: var(--border-hi); background: var(--g06); }
-.autobuy-toggle.on { border-color: var(--g40); background: var(--g10); }
-
-.autobuy-toggle input[type="checkbox"] { display: none; }
-
-.autobuy-content {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  flex: 1;
-}
-.autobuy-label {
-  font-size: 0.75rem;
-  color: var(--text-soft);
-  letter-spacing: .5px;
-}
-.autobuy-amount {
-  font-size: 0.67rem;
-  color: var(--pos);
-}
-
-.toggle-pill {
-  width: 34px;
-  height: 18px;
-  border-radius: 9px;
-  background: var(--g12);
-  border: 1px solid var(--border);
-  position: relative;
-  flex-shrink: 0;
-  transition: background .2s, border-color .2s;
-}
-.toggle-pill::after {
-  content: '';
-  position: absolute;
-  top: 2px;
-  left: 2px;
-  width: 12px;
-  height: 12px;
-  border-radius: 50%;
-  background: var(--text-mute);
-  transition: transform .2s, background .2s;
-}
-.toggle-pill.on { background: var(--g25); border-color: var(--g40); }
-.toggle-pill.on::after { transform: translateX(16px); background: var(--g); box-shadow: var(--glow); }
-
 /* ── Recovered Preview ─────────────────────────────────── */
 .recovered-preview {
   display: flex;
@@ -665,62 +608,6 @@ a:hover { color: var(--g-bright); text-decoration: underline; }
 }
 .failure-name { color: var(--text-soft); }
 .failure-error { color: var(--neg); opacity: 0.75; word-break: break-word; }
-
-/* ── Swap confirm ──────────────────────────────────────── */
-.swap-confirm {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  padding: 14px 16px;
-  background: var(--bg2);
-  border: 1px solid var(--border);
-  border-radius: var(--r-sm);
-}
-.swap-confirm-row {
-  display: flex;
-  justify-content: space-between;
-  align-items: baseline;
-  font-size: 0.78rem;
-  gap: 12px;
-}
-.swap-confirm-label {
-  color: var(--text-mute);
-  letter-spacing: 1px;
-  text-transform: uppercase;
-  font-size: 0.68rem;
-}
-.swap-confirm-value {
-  color: var(--text);
-  font-family: var(--mono);
-  font-weight: 500;
-}
-.swap-confirm-value.pos { color: var(--pos); }
-
-.swap-confirm-actions {
-  display: flex;
-  gap: 10px;
-  justify-content: flex-end;
-  margin-top: 4px;
-}
-.btn-secondary {
-  padding: 7px 18px;
-  font-family: var(--mono);
-  font-size: 0.75rem;
-  font-weight: 500;
-  letter-spacing: 1.5px;
-  text-transform: uppercase;
-  background: transparent;
-  color: var(--text-soft);
-  border: 1px solid var(--border-hi);
-  cursor: pointer;
-  border-radius: var(--r-sm);
-  transition: background .15s, border-color .15s, color .15s;
-}
-.btn-secondary:hover {
-  background: rgba(255,255,255,.04);
-  color: var(--text);
-  border-color: var(--border-act);
-}
 
 /* ── Footer ────────────────────────────────────────────── */
 .footer {

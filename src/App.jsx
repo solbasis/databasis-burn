@@ -2,7 +2,6 @@ import { useState, useCallback, useMemo } from 'react';
 import { useWallet } from '@solana/wallet-adapter-react';
 import { WalletButton } from './components/WalletButton';
 import { ResultsTabs } from './components/ResultsTabs';
-import { AutoBuyToggle } from './components/AutoBuyToggle';
 import { BurnModal } from './components/BurnModal';
 import { useScanner } from './hooks/useScanner';
 import { useBurn } from './hooks/useBurn';
@@ -21,7 +20,6 @@ export default function App() {
   const burnState = useBurn();
 
   const [selected, setSelected] = useState(new Set());
-  const [autoBuy, setAutoBuy] = useState(false);
   const [showModal, setShowModal] = useState(false);
 
   const handleToggle = useCallback((item, type) => {
@@ -77,8 +75,8 @@ export default function App() {
     if (selectedEmpty.length + selectedTokens.length + selectedNFTs.length + selectedCNFTs.length === 0) return;
 
     setShowModal(true);
-    await burnState.execute({ wallet, selectedEmpty, selectedTokens, selectedNFTs, selectedCNFTs, autoBuy });
-  }, [wallet, selectedLists, autoBuy, burnState]);
+    await burnState.execute({ wallet, selectedEmpty, selectedTokens, selectedNFTs, selectedCNFTs });
+  }, [wallet, selectedLists, burnState]);
 
   const handleModalClose = useCallback(() => {
     // Capture before reset(): setStatus flushes synchronously but relying on
@@ -107,13 +105,12 @@ export default function App() {
           <div className="hero">
             <h1 className="hero-title">clean your wallet.<br />recover your SOL.</h1>
             <p className="hero-desc">
-              Close empty token accounts, burn dust and unwanted NFTs,
-              and optionally auto-buy $BASIS with the recovered rent.
+              Close empty token accounts and burn dust, NFTs, and cNFTs
+              to reclaim the rent locked in them.
             </p>
             <ul className="hero-features">
               <li>↳ recover ~0.002 SOL per empty account</li>
               <li>↳ burn tokens, NFTs & cNFTs in bulk</li>
-              <li>↳ optional auto-buy $BASIS</li>
               <li>↳ 100% free — no fees</li>
             </ul>
           </div>
@@ -147,12 +144,6 @@ export default function App() {
                 />
 
                 <div className="action-bar">
-                  <AutoBuyToggle
-                    enabled={autoBuy}
-                    onChange={setAutoBuy}
-                    recoveredSol={recoveredSol}
-                  />
-
                   {recoveredSol > 0 && (
                     <div className="recovered-preview">
                       <span>recoverable</span>
@@ -184,14 +175,7 @@ export default function App() {
         </a>
       </footer>
 
-      {showModal && (
-        <BurnModal
-          status={burnState}
-          onClose={handleModalClose}
-          onConfirmSwap={burnState.confirmSwap}
-          onSkipSwap={burnState.skipSwap}
-        />
-      )}
+      {showModal && <BurnModal status={burnState} onClose={handleModalClose} />}
     </div>
   );
 }

@@ -2,6 +2,7 @@ import { useState, useCallback } from 'react';
 import { closeEmptyAccounts, burnTokenAccounts } from '../lib/solana';
 import { burnNFTs } from '../lib/burnNFTs';
 import { getConnection } from '../lib/helius';
+import { recordRecovery } from '../lib/recoveryStats';
 
 // Track what the user asked us to burn, per category, so the modal can phrase
 // its result correctly: cNFT-only runs don't recover rent and shouldn't be
@@ -106,6 +107,12 @@ export function useBurn() {
 
       const balanceAfter = await connection.getBalance(wallet.publicKey);
       const recoveredLamports = Math.max(0, balanceAfter - balanceBefore);
+
+      // Fire-and-forget — the on-chain burn has already succeeded, so a
+      // stats-write hiccup should never surface in the UI. recordRecovery
+      // swallows its own errors. Only contribute if we actually recovered
+      // SOL (e.g. cNFT-only runs don't and shouldn't bump the counter).
+      if (recoveredLamports > 0) void recordRecovery(recoveredLamports);
 
       setStatus({
         running: false,

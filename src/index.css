@@ -640,6 +640,69 @@ a:hover { color: var(--g-bright); text-decoration: underline; }
   letter-spacing: 1px;
 }
 
+/* ── Recovered counter (hero variant + scan-bar chip) ──── */
+.recovered-counter.hero {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  background: var(--surface);
+  border: 1px solid var(--border-hi);
+  border-radius: var(--r);
+  padding: 16px 20px;
+  margin-bottom: 28px;
+  box-shadow: var(--shadow), var(--glow);
+}
+.recovered-counter.hero .rc-flame {
+  font-size: 1.6rem;
+  line-height: 1;
+  filter: drop-shadow(0 0 8px rgba(120,177,90,.35));
+}
+.recovered-counter.hero .rc-main { display: flex; flex-direction: column; gap: 2px; }
+.recovered-counter.hero .rc-sol {
+  font-family: var(--mono);
+  font-size: 1.4rem;
+  font-weight: 600;
+  color: var(--g-bright);
+  letter-spacing: .5px;
+}
+.recovered-counter.hero .rc-unit {
+  font-size: 0.85rem;
+  color: var(--text-dim);
+  font-weight: 400;
+  margin-left: 4px;
+}
+.recovered-counter.hero .rc-sub {
+  font-size: 0.72rem;
+  color: var(--text-dim);
+  letter-spacing: .4px;
+  text-transform: lowercase;
+}
+
+.recovered-counter.compact {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 6px;
+  margin-left: auto;
+  padding: 5px 10px;
+  background: var(--g06);
+  border: 1px solid var(--border);
+  border-radius: var(--r-sm);
+  font-family: var(--mono);
+  font-size: 0.7rem;
+}
+.recovered-counter.compact .rc-label {
+  color: var(--text-mute);
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+.recovered-counter.compact .rc-value {
+  color: var(--g-bright);
+  font-weight: 500;
+}
+.recovered-counter.compact .rc-burns {
+  color: var(--text-dim);
+}
+
 /* ── Wallet adapter overrides ──────────────────────────── */
 .wallet-adapter-modal-wrapper {
   background: var(--bg3) !important;
@@ -656,6 +719,10 @@ a:hover { color: var(--g-bright); text-decoration: underline; }
   .hero-title { font-size: 1.3rem; }
   .modal { min-width: unset; width: calc(100vw - 32px); padding: 24px; }
   .tab { padding: 8px 10px; font-size: 0.62rem; }
+  /* Let scan-bar rows wrap instead of squeezing the all-time chip off-screen. */
+  .scan-bar { flex-wrap: wrap; }
+  .recovered-counter.compact { margin-left: 0; }
+  .recovered-counter.hero .rc-sol { font-size: 1.15rem; }
 }
 
 @media (prefers-reduced-motion: reduce) {

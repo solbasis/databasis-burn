@@ -3,6 +3,7 @@ import { useWallet } from '@solana/wallet-adapter-react';
 import { WalletButton } from './components/WalletButton';
 import { ResultsTabs } from './components/ResultsTabs';
 import { BurnModal } from './components/BurnModal';
+import { RecoveredCounter } from './components/RecoveredCounter';
 import { useScanner } from './hooks/useScanner';
 import { useBurn } from './hooks/useBurn';
 import { SOL_PER_LAMPORT } from './config';
@@ -113,6 +114,7 @@ export default function App() {
               Close empty token accounts and burn dust, NFTs, and cNFTs
               to reclaim the rent locked in them.
             </p>
+            <RecoveredCounter variant="hero" />
             <ul className="hero-features">
               <li>↳ recover ~0.002 SOL per empty account</li>
               <li>↳ burn tokens, NFTs & cNFTs in bulk</li>
@@ -130,6 +132,7 @@ export default function App() {
                   {empty.length} empty · {tokens.length} tokens · {nfts.length} NFTs · {cnfts.length} cNFTs
                 </span>
               )}
+              <RecoveredCounter variant="compact" />
             </div>
 
             {scanError && <p className="error-msg">{scanError}</p>}

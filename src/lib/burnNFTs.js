@@ -33,6 +33,16 @@ function makeUmi(wallet) {
     .use(walletAdapterIdentity(wallet));
 }
 
+// Scam-cNFT trees (like the $GIFT airdrop spam) typically use a shallow canopy,
+// which means any concurrent activity on the tree between our proof fetch and the
+// RPC's preflight simulation invalidates the proof — you get 0x1771
+// (ConcurrentMerkleTreeError / Invalid root). Two mitigations:
+//   1. skipPreflight on the send — the on-chain bubblegum program tolerates more
+//      proof staleness via the canopy than the RPC's literal simulator does.
+//   2. Retry with a fresh proof on 0x1771 — if landing catches a quieter slot,
+//      the refreshed proof resolves.
+const CNFT_ATTEMPTS = 4;
+
 export async function burnCNFT(umi, wallet, nft) {
   const { tree, dataHash, creatorHash, leafId } = nft.compression;
   if (!tree || !dataHash || !creatorHash || leafId == null) {
@@ -56,20 +66,27 @@ export async function burnCNFT(umi, wallet, nft) {
       nonce:       leafId,
       index:       leafId,
       proof:       proof.proof.map(p => publicKey(p)),
-    }).sendAndConfirm(umi);
+    }).sendAndConfirm(umi, { send: { skipPreflight: true } });
   };
 
-  try {
-    await attempt();
-  } catch (err) {
-    const msg = String(err?.message ?? err);
-    // ConcurrentMerkleTreeError (0x1771 / 6001) => proof is stale, refetch + retry once
-    if (/0x1771|ConcurrentMerkleTreeError|Invalid root/i.test(msg)) {
+  let lastErr;
+  for (let i = 0; i < CNFT_ATTEMPTS; i++) {
+    try {
       await attempt();
-    } else {
-      throw err;
+      return;
+    } catch (err) {
+      lastErr = err;
+      const msg = String(err?.message ?? err);
+      // Only retry if the failure looks like a stale-proof race. Anything else
+      // (bad metadata, wrong owner, etc.) won't benefit from retrying.
+      if (!/0x1771|ConcurrentMerkleTreeError|Invalid root|PublicKeyMismatch/i.test(msg)) {
+        throw err;
+      }
+      // Brief backoff so a fresh getAssetProof sees a stable tree.
+      if (i < CNFT_ATTEMPTS - 1) await new Promise(r => setTimeout(r, 400));
     }
   }
+  throw lastErr;
 }
 
 export async function burnCoreNFT(umi, nft) {

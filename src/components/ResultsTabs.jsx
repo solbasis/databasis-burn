@@ -46,6 +46,13 @@ export function ResultsTabs({ empty, tokens, nfts, cnfts, selected, onToggle, on
       </div>
 
       <div className="tab-content">
+        {/* cNFTs are Merkle-tree leaves, not rent-locked accounts — burning
+            them removes the scam from your wallet but returns no SOL. */}
+        {active.type === 'cnft' && active.items.length > 0 && (
+          <p className="tab-note">
+            cNFTs don't lock rent — burning removes them from your wallet but recovers no SOL
+          </p>
+        )}
         {active.items.length === 0 ? (
           <p className="empty-state">no {active.label.toLowerCase()} found</p>
         ) : (

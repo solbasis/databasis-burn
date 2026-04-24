@@ -345,6 +345,18 @@ a:hover { color: var(--g-bright); text-decoration: underline; }
   letter-spacing: 1px;
 }
 
+.tab-note {
+  padding: 10px 14px;
+  margin: 0 0 8px 0;
+  font-size: 0.7rem;
+  color: var(--text-dim);
+  background: var(--g06);
+  border: 1px dashed var(--border);
+  border-radius: var(--r-sm);
+  letter-spacing: .5px;
+  line-height: 1.5;
+}
+
 /* ── Account Row ───────────────────────────────────────── */
 .account-row {
   display: flex;
@@ -576,6 +588,13 @@ a:hover { color: var(--g-bright); text-decoration: underline; }
 
 .modal-recovered { font-size: 0.9rem; color: var(--text-soft); }
 .modal-recovered strong { color: var(--pos); }
+
+.modal-note {
+  font-size: 0.66rem;
+  color: var(--text-mute);
+  letter-spacing: .5px;
+  line-height: 1.5;
+}
 
 .txid-list { display: flex; flex-direction: column; gap: 6px; }
 .txid-link {

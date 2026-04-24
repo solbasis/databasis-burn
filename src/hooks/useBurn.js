@@ -3,6 +3,11 @@ import { closeEmptyAccounts, burnTokenAccounts } from '../lib/solana';
 import { burnNFTs } from '../lib/burnNFTs';
 import { getConnection } from '../lib/helius';
 
+// Track what the user asked us to burn, per category, so the modal can phrase
+// its result correctly: cNFT-only runs don't recover rent and shouldn't be
+// labelled "recovered X SOL".
+const EMPTY_COUNTS = { empty: 0, tokens: 0, nfts: 0, cnfts: 0 };
+
 export function useBurn() {
   const [status, setStatus] = useState({
     running: false,
@@ -13,6 +18,7 @@ export function useBurn() {
     recoveredLamports: 0,
     txids: [],
     failures: [],
+    attempted: EMPTY_COUNTS,
   });
 
   const execute = useCallback(async ({
@@ -22,7 +28,13 @@ export function useBurn() {
     selectedNFTs,
     selectedCNFTs = [],
   }) => {
-    setStatus({ running: true, step: 'preparing', progress: 0, done: false, error: null, recoveredLamports: 0, txids: [], failures: [] });
+    const attempted = {
+      empty:  selectedEmpty.length,
+      tokens: selectedTokens.length,
+      nfts:   selectedNFTs.length,
+      cnfts:  selectedCNFTs.length,
+    };
+    setStatus({ running: true, step: 'preparing', progress: 0, done: false, error: null, recoveredLamports: 0, txids: [], failures: [], attempted });
 
     // Live progress state — committed incrementally so that on error the UI
     // still shows what did succeed.
@@ -71,7 +83,8 @@ export function useBurn() {
           setStatus(s => ({ ...s, progress: p }))
         );
         allTxids.push(...txids);
-        allFailures.push(...failures);
+        // Tag cNFT failures so the modal can split per-category counts.
+        allFailures.push(...failures.map(f => ({ ...f, type: 'cnft' })));
       }
 
       const balanceAfter = await connection.getBalance(wallet.publicKey);
@@ -86,6 +99,7 @@ export function useBurn() {
         recoveredLamports,
         txids: [...allTxids],
         failures: [...allFailures],
+        attempted,
       });
     } catch (err) {
       // Preserve partial progress (txids + failures) so the modal can show
@@ -101,7 +115,7 @@ export function useBurn() {
   }, []);
 
   const reset = useCallback(() => {
-    setStatus({ running: false, step: null, progress: 0, done: false, error: null, recoveredLamports: 0, txids: [], failures: [] });
+    setStatus({ running: false, step: null, progress: 0, done: false, error: null, recoveredLamports: 0, txids: [], failures: [], attempted: EMPTY_COUNTS });
   }, []);
 
   return { ...status, execute, reset };

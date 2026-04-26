@@ -1,11 +1,14 @@
-import { useState, useCallback, useMemo } from 'react';
+import { useState, useCallback, useMemo, useEffect } from 'react';
 import { useWallet } from '@solana/wallet-adapter-react';
 import { WalletButton } from './components/WalletButton';
 import { ResultsTabs } from './components/ResultsTabs';
 import { BurnModal } from './components/BurnModal';
 import { RecoveredCounter } from './components/RecoveredCounter';
+import { UserStatsCard } from './components/UserStatsCard';
+import { UserHistoryPanel } from './components/UserHistoryPanel';
 import { useScanner } from './hooks/useScanner';
 import { useBurn } from './hooks/useBurn';
+import { useWalletBalance } from './hooks/useWalletBalance';
 import { SOL_PER_LAMPORT } from './config';
 
 // Selection keys are namespaced as `${type}:${id}` so an NFT mint and a token
@@ -15,10 +18,43 @@ function makeKey(item, type) {
   return `${type}:${id}`;
 }
 
+// Three plain-language steps for the disconnected hero. Numbered so the
+// reading order is unambiguous even when the grid stacks on mobile.
+const HOW_IT_WORKS = [
+  {
+    n: '01',
+    title: 'connect your wallet',
+    desc: 'Phantom, Solflare, Backpack — any Solana wallet. Read-only by default; we never touch your keys.',
+  },
+  {
+    n: '02',
+    title: 'scan for dust',
+    desc: 'We find empty token accounts, scam tokens, and unwanted NFTs locking up rent in your wallet.',
+  },
+  {
+    n: '03',
+    title: 'burn & recover',
+    desc: 'Pick what to nuke — SOL flows back to your wallet. cNFTs (free spam mints) are removed but recover no rent.',
+  },
+];
+
+// True when the focused element is one where keystrokes mean "type characters",
+// not "trigger shortcut". We bail out of shortcut handling in those cases so
+// the user can search/sort without firing scan/select-all/burn.
+function isTypingTarget(el) {
+  if (!el) return false;
+  if (el.isContentEditable) return true;
+  const tag = el.tagName;
+  if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return true;
+  return false;
+}
+
 export default function App() {
   const wallet = useWallet();
   const { loading, scanned, error: scanError, empty, tokens, nfts, cnfts, scan, prune } = useScanner();
   const burnState = useBurn();
+  const walletAddress = wallet.publicKey?.toBase58() ?? null;
+  const balanceLamports = useWalletBalance(walletAddress);
 
   const [selected, setSelected] = useState(new Set());
   const [showModal, setShowModal] = useState(false);
@@ -79,6 +115,20 @@ export default function App() {
     await burnState.execute({ wallet, selectedEmpty, selectedTokens, selectedNFTs, selectedCNFTs });
   }, [wallet, selectedLists, burnState]);
 
+  // Per-row "burn just this one" — bypasses the multi-select flow entirely.
+  // Builds a single-item batch keyed by the row's type and runs it through
+  // the same execute() so success/failure UX is identical to a multi-burn.
+  const handleBurnOne = useCallback(async (item, type) => {
+    const batch = {
+      selectedEmpty:  type === 'empty' ? [item] : [],
+      selectedTokens: type === 'token' ? [item] : [],
+      selectedNFTs:   type === 'nft'   ? [item] : [],
+      selectedCNFTs:  type === 'cnft'  ? [item] : [],
+    };
+    setShowModal(true);
+    await burnState.execute({ wallet, ...batch });
+  }, [wallet, burnState]);
+
   const handleModalClose = useCallback(() => {
     // Capture before reset(): setStatus flushes synchronously but relying on
     // that coupling is fragile — read first, then reset.
@@ -96,30 +146,115 @@ export default function App() {
     }
   }, [burnState, wallet.publicKey, prune]);
 
+  // ── Keyboard shortcuts ─────────────────────────────────────────────────
+  // S → rescan, A → select-all (active tab handled by ResultsTabs, so we
+  // approximate by selecting all currently-visible items across all tabs),
+  // B → initiate burn. Power-user nicety; ignored when typing in a field
+  // and when no wallet is connected.
+  useEffect(() => {
+    if (!wallet.connected) return;
+    const handler = (e) => {
+      if (e.metaKey || e.ctrlKey || e.altKey) return;     // don't hijack browser shortcuts
+      if (isTypingTarget(e.target)) return;
+      if (showModal) return;                               // modal owns the keys
+
+      const key = e.key.toLowerCase();
+      if (key === 's') {
+        e.preventDefault();
+        if (!loading) handleScan();
+      } else if (key === 'a' && scanned) {
+        e.preventDefault();
+        // Select every visible item across every tab. Users who want a
+        // narrower select-all can still use the ResultsTabs "all" button.
+        handleSelectAll(empty,  'empty');
+        handleSelectAll(tokens, 'token');
+        handleSelectAll(nfts,   'nft');
+        handleSelectAll(cnfts,  'cnft');
+      } else if (key === 'b') {
+        e.preventDefault();
+        if (selectedCount > 0 && !burnState.running) handleBurn();
+      }
+    };
+    window.addEventListener('keydown', handler);
+    return () => window.removeEventListener('keydown', handler);
+  }, [
+    wallet.connected, showModal, loading, scanned, selectedCount, burnState.running,
+    empty, tokens, nfts, cnfts,
+    handleScan, handleSelectAll, handleBurn,
+  ]);
+
+  const hasResults = scanned && (empty.length > 0 || tokens.length > 0 || nfts.length > 0 || cnfts.length > 0);
+
   return (
     <div className="app">
       <header className="header">
         <div className="header-left">
-          <span className="logo">🔥 BASIS BURN</span>
+          <span className="logo">
+            <span className="logo-flame" aria-hidden="true">🔥</span>BASIS&nbsp;BURN
+          </span>
           <span className="tagline">close · burn · recover</span>
         </div>
         <WalletButton />
       </header>
 
+      {/* Status strip — gives the app a "live operator console" feel and tells
+          power users exactly what RPC/network we're on. When connected, the
+          wallet's current SOL balance gets surfaced here too — useful context
+          for a "recover SOL" tool. */}
+      <div className="status-strip" aria-label="system status">
+        <span className="status-item">
+          <span className="status-dot" aria-hidden="true" /> <b>live</b>
+        </span>
+        <span className="status-sep">·</span>
+        <span className="status-item">net <b>solana&nbsp;mainnet</b></span>
+        <span className="status-sep">·</span>
+        <span className="status-item">rpc <b>helius</b></span>
+        <span className="status-sep">·</span>
+        <span className="status-item">fee <b>0%</b></span>
+        {balanceLamports != null && (
+          <>
+            <span className="status-sep">·</span>
+            <span className="status-item">bal <b>{(balanceLamports * SOL_PER_LAMPORT).toFixed(4)} SOL</b></span>
+          </>
+        )}
+      </div>
+
       <main className="main">
         {!wallet.connected ? (
           <div className="hero">
-            <h1 className="hero-title">clean your wallet.<br />recover your SOL.</h1>
-            <p className="hero-desc">
-              Close empty token accounts and burn dust, NFTs, and cNFTs
-              to reclaim the rent locked in them.
-            </p>
+            <div>
+              <span className="hero-eyebrow">terminal · v1</span>
+              <h1 className="hero-title">
+                clean your wallet.<br />
+                recover your <span className="accent">SOL</span>.
+              </h1>
+            </div>
+
+            {/* Counter is the headline social proof — placed FIRST under the
+                title so the all-time number is the first quantitative thing a
+                visitor sees. */}
             <RecoveredCounter variant="hero" />
-            <ul className="hero-features">
-              <li>↳ recover ~0.002 SOL per empty account</li>
-              <li>↳ burn tokens, NFTs & cNFTs in bulk</li>
-              <li>↳ 100% free — no fees</li>
-            </ul>
+
+            <p className="hero-desc">
+              Every Solana wallet locks rent in empty token accounts, dust, and
+              unwanted NFTs. Basis Burn finds them, lets you pick what to torch,
+              and refunds the SOL back to you in one signed transaction.
+            </p>
+
+            <div className="hero-steps">
+              {HOW_IT_WORKS.map(step => (
+                <div className="hero-step" key={step.n}>
+                  <span className="hero-step-num">{step.n}</span>
+                  <div className="hero-step-title">{step.title}</div>
+                  <div className="hero-step-desc">{step.desc}</div>
+                </div>
+              ))}
+            </div>
+
+            <div className="hero-cta">
+              <WalletButton />
+              <span className="hero-cta-note">100% free · no fees · open source</span>
+            </div>
           </div>
         ) : (
           <div className="workspace">
@@ -127,17 +262,58 @@ export default function App() {
               <button className="btn-scan" onClick={handleScan} disabled={loading}>
                 {loading ? 'scanning…' : scanned ? '↺ rescan' : 'scan wallet'}
               </button>
-              {scanned && (
+              {scanned && !loading && (
                 <span className="scan-summary">
-                  {empty.length} empty · {tokens.length} tokens · {nfts.length} NFTs · {cnfts.length} cNFTs
+                  <b>{empty.length}</b> empty · <b>{tokens.length}</b> tokens · <b>{nfts.length}</b> NFTs · <b>{cnfts.length}</b> cNFTs
                 </span>
               )}
-              <RecoveredCounter variant="compact" />
+              <div className="scan-bar-stats">
+                <UserStatsCard
+                  walletAddress={walletAddress}
+                  variant="compact"
+                />
+                <RecoveredCounter variant="compact" />
+              </div>
             </div>
+
+            {/* Personal history panel — only renders when this wallet has
+                burn history saved. Sparkline + tier achievements. */}
+            <UserHistoryPanel walletAddress={walletAddress} />
 
             {scanError && <p className="error-msg">{scanError}</p>}
 
-            {scanned && (
+            {/* Loading state — show ResultsTabs in skeleton mode so the user
+                gets immediate visual feedback instead of an empty workspace. */}
+            {loading && (
+              <ResultsTabs
+                empty={[]} tokens={[]} nfts={[]} cnfts={[]}
+                selected={selected}
+                onToggle={handleToggle}
+                onSelectAll={handleSelectAll}
+                onClearAll={handleClearAll}
+                loading
+                disabled
+              />
+            )}
+
+            {/* Celebratory empty state — when scan returns zero of everything,
+                that's a *win* worth saying so out loud instead of showing four
+                empty tabs. */}
+            {!loading && scanned && !scanError && !hasResults && (
+              <div className="clean-state" role="status">
+                <div className="clean-state-icon" aria-hidden="true">✓</div>
+                <h2 className="clean-state-title">wallet is clean</h2>
+                <p className="clean-state-desc">
+                  No empty accounts, no dust, no unwanted NFTs. Nothing to burn —
+                  your rent is already where it should be: in your wallet.
+                </p>
+                <button className="btn-ghost" onClick={handleScan} disabled={loading}>
+                  ↺ scan again
+                </button>
+              </div>
+            )}
+
+            {!loading && hasResults && (
               <>
                 <ResultsTabs
                   empty={empty}
@@ -148,6 +324,7 @@ export default function App() {
                   onToggle={handleToggle}
                   onSelectAll={handleSelectAll}
                   onClearAll={handleClearAll}
+                  onBurnOne={handleBurnOne}
                   disabled={burnState.running}
                 />
 
@@ -166,8 +343,15 @@ export default function App() {
                   >
                     {selectedCount === 0
                       ? 'select items to burn'
-                      : `burn ${selectedCount} item${selectedCount !== 1 ? 's' : ''}`}
+                      : `initiate burn — ${selectedCount} item${selectedCount !== 1 ? 's' : ''}`}
                   </button>
+
+                  {/* Keyboard shortcut hint — reads as a help line, not a
+                      control. Hidden on small screens where shortcuts don't
+                      apply (no physical keyboard). */}
+                  <span className="kbd-hint">
+                    <kbd>S</kbd> rescan · <kbd>A</kbd> select all · <kbd>B</kbd> burn
+                  </span>
                 </div>
               </>
             )}
@@ -181,6 +365,10 @@ export default function App() {
         <a href="https://solscan.io/token/A5BJBQUTR5sTzkM89hRDuApWyvgjdXpR7B7rW1r9pump" target="_blank" rel="noopener noreferrer">
           $BASIS
         </a>
+        <span className="footer-version">
+          <span className="footer-pulse" aria-hidden="true" />
+          v1.0 · online
+        </span>
       </footer>
 
       {showModal && <BurnModal status={burnState} onClose={handleModalClose} />}

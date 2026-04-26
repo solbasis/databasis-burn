@@ -18,7 +18,7 @@ export function WalletButton() {
 
   return (
     <button className="btn-primary" onClick={() => setVisible(true)}>
-      connect wallet
+      ▸ connect wallet
     </button>
   );
 }

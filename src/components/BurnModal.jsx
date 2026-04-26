@@ -28,7 +28,8 @@ export function BurnModal({ status, onClose }) {
       <div className="modal" onClick={e => e.stopPropagation()}>
         {running && (
           <>
-            <h2 className="modal-title fire">burning…</h2>
+            <span className="modal-eyebrow">ignition sequence</span>
+            <h2 className="modal-title fire">burning</h2>
             <p className="modal-step">{STEP_LABELS[step] ?? step}</p>
             <div className="progress-bar">
               <div className="progress-fill" style={{ width: `${Math.round(progress * 100)}%` }} />
@@ -39,7 +40,15 @@ export function BurnModal({ status, onClose }) {
 
         {done && (
           <>
-            <h2 className="modal-title success">done ✓</h2>
+            <span className="modal-eyebrow">sequence complete</span>
+            <h2 className="modal-title success">
+              done ✓
+              {/* Pure-CSS spark burst — eight directional sparks at fixed
+                  angles play exactly once on mount, then dissolve. */}
+              <span className="spark-burst" aria-hidden="true">
+                {[...Array(8)].map((_, i) => <span key={i} className="spark" />)}
+              </span>
+            </h2>
             {cnftOnly ? (
               <p className="modal-recovered">
                 removed <strong>{cnftBurned} cNFT{cnftBurned === 1 ? '' : 's'}</strong>
@@ -89,6 +98,7 @@ export function BurnModal({ status, onClose }) {
 
         {error && (
           <>
+            <span className="modal-eyebrow">sequence aborted</span>
             <h2 className="modal-title error">error</h2>
             <p className="modal-error-msg">{error}</p>
             {txids.length > 0 && (

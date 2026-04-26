@@ -8,8 +8,81 @@ const STEP_LABELS = {
   'burning-cnfts': 'Burning cNFTs…',
 };
 
-export function BurnModal({ status, onClose }) {
+// "Are you sure?" review stage shown BEFORE any wallet popup is requested.
+// Lists exactly what's about to happen and the SOL the user will recover,
+// then forces an explicit confirmation. Cancel does nothing destructive —
+// no wallet prompt is ever issued unless this dialog is confirmed.
+//
+// This is a defense-in-depth UX layer on top of the wallet provider's own
+// signature confirmation. It catches "oh shit I clicked the wrong thing"
+// scenarios where the wallet popup details would be too dense to verify
+// at a glance (a 12-account close batch, etc.).
+function ReviewStage({ review, onConfirm, onCancel }) {
+  const { selectedEmpty, selectedTokens, selectedNFTs, selectedCNFTs, recoverableLamports } = review;
+  const counts = [
+    { n: selectedEmpty.length,  label: 'empty account', verb: 'close' },
+    { n: selectedTokens.length, label: 'token',         verb: 'burn'  },
+    { n: selectedNFTs.length,   label: 'NFT',           verb: 'burn'  },
+    { n: selectedCNFTs.length,  label: 'cNFT',          verb: 'remove' },
+  ].filter(c => c.n > 0);
+
+  const totalCount = counts.reduce((s, c) => s + c.n, 0);
+  const recoverableSol = recoverableLamports * SOL_PER_LAMPORT;
+  const willRecover = recoverableLamports > 0;
+
+  return (
+    <>
+      <span className="modal-eyebrow">review · pre-flight</span>
+      <h2 className="modal-title review">confirm burn</h2>
+
+      <div className="review-summary">
+        <p className="review-lead">
+          you're about to <b>{totalCount === 1 ? 'process' : 'process'} {totalCount} item{totalCount === 1 ? '' : 's'}</b>:
+        </p>
+        <ul className="review-list">
+          {counts.map((c, i) => (
+            <li key={i}>
+              <span className="review-verb">{c.verb}</span>
+              <span className="review-count">{c.n}</span>
+              <span className="review-label">{c.label}{c.n === 1 ? '' : 's'}</span>
+            </li>
+          ))}
+        </ul>
+      </div>
+
+      {willRecover ? (
+        <div className="review-recover">
+          <span>you will recover</span>
+          <strong>~{recoverableSol.toFixed(6)} SOL</strong>
+        </div>
+      ) : (
+        <p className="review-no-recover">
+          this batch contains only cNFTs — no SOL is recovered (cNFTs don't lock rent).
+        </p>
+      )}
+
+      <p className="review-warning">
+        ⚠ this is irreversible. burned tokens / NFTs cannot be restored.
+        your wallet will ask you to sign each transaction.
+      </p>
+
+      <div className="review-actions">
+        <button className="btn-ghost" onClick={onCancel} autoFocus>cancel</button>
+        <button className="btn-burn review-confirm" onClick={onConfirm}>
+          ▸ confirm & sign
+        </button>
+      </div>
+    </>
+  );
+}
+
+export function BurnModal({ status, review, onConfirm, onCancel, onClose }) {
   const { running, step, progress, done, error, recoveredLamports, txids, failures = [], attempted } = status;
+
+  // Stage selection: review (no signing yet) → running → done | error.
+  // `review` is set by the parent before any execute() call; once execute
+  // begins, status.running becomes true and we transition automatically.
+  const inReview = !!review && !running && !done && !error;
 
   // cNFTs don't lock rent — they're just Merkle-tree leaves. Count how many the
   // user tried to burn vs how many failed, so we can report "N cNFTs removed"
@@ -23,9 +96,22 @@ export function BurnModal({ status, onClose }) {
     (attempted?.nfts   ?? 0);
   const cnftOnly = rentBearingAttempted === 0 && cnftAttempted > 0;
 
+  // Click-outside semantics:
+  //  - review stage:  cancels (safe — no signing yet)
+  //  - running:       no-op (mid-burn — don't break the user's flow)
+  //  - done | error:  closes
+  const handleOverlayClick = () => {
+    if (inReview) onCancel?.();
+    else if (done || error) onClose?.();
+  };
+
   return (
-    <div className="modal-overlay" onClick={done || error ? onClose : undefined}>
+    <div className="modal-overlay" onClick={handleOverlayClick}>
       <div className="modal" onClick={e => e.stopPropagation()}>
+        {inReview && (
+          <ReviewStage review={review} onConfirm={onConfirm} onCancel={onCancel} />
+        )}
+
         {running && (
           <>
             <span className="modal-eyebrow">ignition sequence</span>

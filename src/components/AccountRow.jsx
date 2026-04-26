@@ -1,4 +1,5 @@
 import { SOL_PER_LAMPORT } from '../config';
+import { safeUrl } from '../lib/safeUrl';
 
 // Plain-language descriptions surfaced via the tag chip's `title` tooltip.
 // These explain what's actually happening on-chain when each asset type is
@@ -22,6 +23,9 @@ export function AccountRow({ item, type, selected, onToggle, onBurnOne, disabled
   const isNftLike = type === 'nft' || type === 'cnft';
   const rentSol = (item.rentLamports * SOL_PER_LAMPORT).toFixed(6);
   const tag = isNftLike ? getTag(item) : null;
+  // Defense-in-depth: only http(s) URLs reach <img src>. See lib/safeUrl.js.
+  const safeImage = safeUrl(item.image);
+  const safeLogo  = safeUrl(item.logo);
 
   // Per-row "burn just this" handler. Stops propagation so clicking the
   // button doesn't ALSO toggle the row's checkbox via the wrapping label.
@@ -42,7 +46,7 @@ export function AccountRow({ item, type, selected, onToggle, onBurnOne, disabled
       <div className="account-row-info">
         {isNftLike ? (
           <>
-            {item.image && <img src={item.image} alt={item.name} className="nft-thumb" />}
+            {safeImage && <img src={safeImage} alt={item.name} className="nft-thumb" />}
             <span className="account-name">{item.name}</span>
             <span
               className="account-tag"
@@ -51,8 +55,8 @@ export function AccountRow({ item, type, selected, onToggle, onBurnOne, disabled
           </>
         ) : (
           <>
-            {item.logo
-              ? <img src={item.logo} alt={item.symbol ?? ''} className="token-logo" onError={e => e.target.style.display='none'} />
+            {safeLogo
+              ? <img src={safeLogo} alt={item.symbol ?? ''} className="token-logo" onError={e => e.target.style.display='none'} />
               : <div className="token-logo-placeholder" />
             }
             <div className="token-info">

@@ -58,6 +58,12 @@ export default function App() {
 
   const [selected, setSelected] = useState(new Set());
   const [showModal, setShowModal] = useState(false);
+  // `pendingReview` holds the batch that's been queued for burn but NOT
+  // yet sent to the wallet for signing. While it's set, the modal shows a
+  // confirmation stage; only after the user confirms do we call execute().
+  // This is a defense-in-depth UX layer — the wallet still asks for each
+  // signature, but a misclick can't reach the wallet popup directly.
+  const [pendingReview, setPendingReview] = useState(null);
 
   const handleToggle = useCallback((item, type) => {
     const key = makeKey(item, type);
@@ -107,27 +113,50 @@ export default function App() {
 
   const selectedCount = selected.size;
 
-  const handleBurn = useCallback(async () => {
+  // Open the review modal. Does NOT trigger any signing — the user must
+  // explicitly confirm in the next stage before any wallet popup appears.
+  const handleBurn = useCallback(() => {
     const { empty: selectedEmpty, tokens: selectedTokens, nfts: selectedNFTs, cnfts: selectedCNFTs } = selectedLists;
     if (selectedEmpty.length + selectedTokens.length + selectedNFTs.length + selectedCNFTs.length === 0) return;
 
-    setShowModal(true);
-    await burnState.execute({ wallet, selectedEmpty, selectedTokens, selectedNFTs, selectedCNFTs });
-  }, [wallet, selectedLists, burnState]);
+    const recoverableLamports = [...selectedEmpty, ...selectedTokens]
+      .reduce((sum, a) => sum + (a.rentLamports ?? 0), 0);
 
-  // Per-row "burn just this one" — bypasses the multi-select flow entirely.
-  // Builds a single-item batch keyed by the row's type and runs it through
-  // the same execute() so success/failure UX is identical to a multi-burn.
-  const handleBurnOne = useCallback(async (item, type) => {
+    setPendingReview({
+      selectedEmpty, selectedTokens, selectedNFTs, selectedCNFTs,
+      recoverableLamports,
+    });
+    setShowModal(true);
+  }, [selectedLists]);
+
+  // Per-row "burn just this one" — also goes through the review stage so a
+  // single misclick on the row-burn button doesn't reach the wallet either.
+  const handleBurnOne = useCallback((item, type) => {
     const batch = {
       selectedEmpty:  type === 'empty' ? [item] : [],
       selectedTokens: type === 'token' ? [item] : [],
       selectedNFTs:   type === 'nft'   ? [item] : [],
       selectedCNFTs:  type === 'cnft'  ? [item] : [],
     };
+    const recoverableLamports = [...batch.selectedEmpty, ...batch.selectedTokens]
+      .reduce((sum, a) => sum + (a.rentLamports ?? 0), 0);
+    setPendingReview({ ...batch, recoverableLamports });
     setShowModal(true);
-    await burnState.execute({ wallet, ...batch });
-  }, [wallet, burnState]);
+  }, []);
+
+  // User confirmed in the review modal — proceed to actual signing.
+  const confirmBurn = useCallback(async () => {
+    if (!pendingReview) return;
+    const review = pendingReview;
+    setPendingReview(null);  // clear so the modal transitions to running
+    await burnState.execute({ wallet, ...review });
+  }, [pendingReview, wallet, burnState]);
+
+  // User cancelled the review modal — close without any side effects.
+  const cancelBurn = useCallback(() => {
+    setPendingReview(null);
+    setShowModal(false);
+  }, []);
 
   const handleModalClose = useCallback(() => {
     // Capture before reset(): setStatus flushes synchronously but relying on
@@ -371,7 +400,15 @@ export default function App() {
         </span>
       </footer>
 
-      {showModal && <BurnModal status={burnState} onClose={handleModalClose} />}
+      {showModal && (
+        <BurnModal
+          status={burnState}
+          review={pendingReview}
+          onConfirm={confirmBurn}
+          onCancel={cancelBurn}
+          onClose={handleModalClose}
+        />
+      )}
     </div>
   );
 }

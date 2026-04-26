@@ -1143,6 +1143,10 @@ a:hover { color: var(--g-bright); text-decoration: underline; text-underline-off
   text-transform: uppercase;
   margin-top: -2px;
 }
+.modal-title.review {
+  color: var(--g-bright);
+  text-shadow: 0 0 12px rgba(120,177,90,.40);
+}
 .modal-title.fire {
   color: var(--neg-bright);
   text-shadow: 0 0 18px var(--neg-glow);
@@ -1597,6 +1601,108 @@ a:hover { color: var(--g-bright); text-decoration: underline; text-underline-off
 .spark-burst .spark:nth-child(6) { --sx: -60px; --sy:   0px; animation-delay: .12s; background: var(--warn); }
 .spark-burst .spark:nth-child(7) { --sx: -44px; --sy: -28px; animation-delay: .09s; }
 .spark-burst .spark:nth-child(8) { --sx:   0px; --sy: -40px; animation-delay: .04s; }
+
+/* ─────────────────────────────────────────────────────────
+   PRE-BURN REVIEW STAGE
+   Shown inside the modal BEFORE any wallet signing happens.
+   ───────────────────────────────────────────────────────── */
+.review-summary {
+  padding: 12px 16px;
+  background: var(--g03);
+  border: 1px solid var(--border);
+  border-radius: var(--r-sm);
+}
+.review-lead {
+  font-size: 0.82rem;
+  color: var(--text);
+  margin-bottom: 10px;
+}
+.review-lead b { color: var(--g-bright); font-weight: 500; }
+.review-list {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+}
+.review-list li {
+  display: grid;
+  grid-template-columns: 80px 40px 1fr;
+  align-items: baseline;
+  gap: 10px;
+  font-size: 0.78rem;
+  font-variant-numeric: tabular-nums;
+}
+.review-verb {
+  color: var(--neg);
+  text-transform: uppercase;
+  letter-spacing: 1.5px;
+  font-size: 0.62rem;
+  font-weight: 500;
+}
+.review-count {
+  color: var(--g-bright);
+  font-weight: 600;
+  text-align: right;
+}
+.review-label { color: var(--text-soft); }
+
+.review-recover {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 16px;
+  background: linear-gradient(180deg, rgba(109,217,125,.06) 0%, var(--surface) 100%);
+  border: 1px solid rgba(109,217,125,.30);
+  border-radius: var(--r-sm);
+  font-size: 0.78rem;
+}
+.review-recover span {
+  color: var(--text-mute);
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  font-size: 0.62rem;
+}
+.review-recover strong {
+  color: var(--pos);
+  font-weight: 500;
+  font-size: 0.95rem;
+  font-variant-numeric: tabular-nums;
+  text-shadow: 0 0 8px rgba(109,217,125,.35);
+}
+.review-no-recover {
+  font-size: 0.74rem;
+  color: var(--warn-soft);
+  background: rgba(216,169,58,.06);
+  border: 1px dashed rgba(216,169,58,.30);
+  border-radius: var(--r-sm);
+  padding: 10px 14px;
+  letter-spacing: .3px;
+}
+.review-warning {
+  font-size: 0.7rem;
+  color: var(--text-soft);
+  background: rgba(255,106,106,.05);
+  border: 1px solid rgba(255,106,106,.22);
+  border-radius: var(--r-sm);
+  padding: 10px 14px;
+  letter-spacing: .3px;
+  line-height: 1.5;
+}
+.review-actions {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 10px;
+  margin-top: 4px;
+}
+.review-actions .btn-ghost { padding: 12px 18px; font-size: 0.72rem; letter-spacing: 2px; }
+.review-confirm { animation: none; }      /* override the armed-pulse — already explicit */
+.review-confirm:not(:hover) {
+  /* keep a softer presence in review, since it's not yet "armed" by selection */
+  border-color: rgba(255,106,106,.45);
+  box-shadow: 0 0 0 1px rgba(255,106,106,.20);
+}
 
 /* ─────────────────────────────────────────────────────────
    USER HISTORY PANEL — sparkline + achievements

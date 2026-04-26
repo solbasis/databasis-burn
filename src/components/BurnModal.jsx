@@ -157,7 +157,7 @@ export function BurnModal({ status, review, onConfirm, onCancel, onClose }) {
                 {txids.map(id => (
                   <a
                     key={id}
-                    href={`https://solscan.io/tx/${id}`}
+                    href={`https://orbmarkets.io/tx/${id}`}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="txid-link"
@@ -194,7 +194,7 @@ export function BurnModal({ status, review, onConfirm, onCancel, onClose }) {
                   {txids.map(id => (
                     <a
                       key={id}
-                      href={`https://solscan.io/tx/${id}`}
+                      href={`https://orbmarkets.io/tx/${id}`}
                       target="_blank"
                       rel="noopener noreferrer"
                       className="txid-link"

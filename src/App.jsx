@@ -391,7 +391,7 @@ export default function App() {
       <footer className="footer">
         <a href="https://databasis.info" target="_blank" rel="noopener noreferrer">databasis.info</a>
         <span>·</span>
-        <a href="https://solscan.io/token/A5BJBQUTR5sTzkM89hRDuApWyvgjdXpR7B7rW1r9pump" target="_blank" rel="noopener noreferrer">
+        <a href="https://orbmarkets.io/token/A5BJBQUTR5sTzkM89hRDuApWyvgjdXpR7B7rW1r9pump" target="_blank" rel="noopener noreferrer">
           $BASIS
         </a>
         <span className="footer-version">

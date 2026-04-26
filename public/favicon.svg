@@ -1,0 +1,57 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  BASIS BURN favicon
+  64×64 viewBox, scales cleanly down to 16×16 browser-tab size.
+  Phosphor-green flame on a dark rounded square — matches the app's
+  CRT-terminal aesthetic. SVG inline so there's no font dependency
+  and no second HTTP request.
+-->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64">
+  <defs>
+    <radialGradient id="bg" cx="50%" cy="20%" r="80%">
+      <stop offset="0%"  stop-color="#0e1b08"/>
+      <stop offset="100%" stop-color="#040603"/>
+    </radialGradient>
+    <linearGradient id="flame" x1="50%" y1="100%" x2="50%" y2="0%">
+      <stop offset="0%"  stop-color="#78b15a"/>
+      <stop offset="55%" stop-color="#a4e07e"/>
+      <stop offset="100%" stop-color="#c2f08e"/>
+    </linearGradient>
+    <filter id="glow" x="-30%" y="-30%" width="160%" height="160%">
+      <feGaussianBlur stdDeviation="1.4" result="blur"/>
+      <feMerge>
+        <feMergeNode in="blur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+  </defs>
+
+  <!-- Dark rounded background -->
+  <rect width="64" height="64" rx="14" ry="14" fill="url(#bg)"/>
+
+  <!-- Subtle inner border (terminal-frame nod) -->
+  <rect x="2.5" y="2.5" width="59" height="59" rx="12" ry="12"
+        fill="none" stroke="#78b15a" stroke-opacity="0.18" stroke-width="1"/>
+
+  <!-- Flame body — single closed path drawn for legibility at small sizes.
+       Outline is symmetric with a slight asymmetric tip for natural feel. -->
+  <path filter="url(#glow)" fill="url(#flame)"
+        d="M32 8
+           C 27 18, 22 22, 22 31
+           C 22 35, 24 38, 26 39
+           C 24 36, 25 32, 28 30
+           C 27 36, 30 39, 32 42
+           C 34 38, 37 35, 38 30
+           C 41 33, 42 38, 41 42
+           C 44 40, 47 36, 47 31
+           C 47 22, 38 17, 32 8 Z"/>
+
+  <!-- Hot core highlight inside the flame -->
+  <path fill="#ffffff" fill-opacity="0.55"
+        d="M32 18
+           C 30 23, 28 25, 28 30
+           C 28 32, 30 33, 31 33
+           C 30 31, 31 28, 33 26
+           C 33 30, 35 32, 35 30
+           C 35 25, 34 22, 32 18 Z"/>
+</svg>

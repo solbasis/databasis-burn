@@ -44,13 +44,28 @@ export async function scanTokenAccounts(walletAddress, nftMints = new Set()) {
     }
   }
 
-  // Enrich tokens with metadata + USD price
-  if (withBalance.length > 0) {
-    const mints = [...new Set(withBalance.map(t => t.mint))];
+  // Enrich BOTH empty + with-balance accounts with token metadata in a
+  // single deduped getAssetBatch call. Helius bills per call (not per id)
+  // and accepts up to 1000 ids per request, so combining costs nothing
+  // extra and gives empty-account rows the same logo/symbol/name UX as
+  // tokens-with-balance — users can recognize the USDC/BONK/etc. account
+  // they're about to close instead of squinting at "4Gg6…sWXh".
+  //
+  // USD price is fetched only for tokens-with-balance — empty accounts
+  // are always $0 so the Jupiter call would be wasted.
+  const allMints = [...new Set([
+    ...empty.map(e => e.mint),
+    ...withBalance.map(t => t.mint),
+  ])];
+
+  if (allMints.length > 0) {
     const [metaMap, priceMap] = await Promise.all([
-      fetchTokenMetadata(mints),
-      fetchTokenPrices(mints),
+      fetchTokenMetadata(allMints),
+      withBalance.length > 0
+        ? fetchTokenPrices(withBalance.map(t => t.mint))
+        : Promise.resolve({}),
     ]);
+
     for (const t of withBalance) {
       const meta = metaMap[t.mint] ?? {};
       t.logo   = meta.logo ?? null;
@@ -58,6 +73,13 @@ export async function scanTokenAccounts(walletAddress, nftMints = new Set()) {
       t.name   = meta.name ?? null;
       t.usdPrice  = priceMap[t.mint] ?? null;
       t.usdValue  = t.usdPrice != null ? t.uiAmount * t.usdPrice : null;
+    }
+
+    for (const e of empty) {
+      const meta = metaMap[e.mint] ?? {};
+      e.logo   = meta.logo ?? null;
+      e.symbol = meta.symbol ?? null;
+      e.name   = meta.name ?? null;
     }
   }
 

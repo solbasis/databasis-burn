@@ -1,0 +1,587 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>BASIS BURN — promo</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="robots" content="noindex,nofollow" />
+  <!--
+    Self-running 30-second promo for burn.databasis.info.
+    Screen-record this page with OBS / QuickTime / ScreenToGif at 1280×720
+    or 1080×1080 (depending on platform) to produce an .mp4 / .gif for socials.
+
+    Timeline (30s loop):
+      0-3s   boot     — terminal cursor + init text
+      3-8s   logo     — BASIS BURN with ember flame
+      8-15s  hook     — "every wallet has dust" with ticking counter
+      15-23s demo     — scan → select → burn flow montage
+      23-30s cta      — burn.databasis.info + audit-passed badge
+  -->
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@300;400;500;600;700&family=Major+Mono+Display&display=swap');
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --g:        #78b15a;
+      --g-bri:    #a4e07e;
+      --g-hot:    #c2f08e;
+      --g25:      rgba(120,177,90,.25);
+      --g15:      rgba(120,177,90,.15);
+      --g08:      rgba(120,177,90,.08);
+      --bg:       #060904;
+      --bg2:      #0a1408;
+      --neg:      #ff6a6a;
+      --neg-bri:  #ff9494;
+      --warn:     #d8a93a;
+      --text:     rgba(176,225,148,.96);
+      --text-dim: rgba(140,190,118,.66);
+      --text-mute:rgba(130,180,108,.42);
+      --border:   rgba(120,177,90,.30);
+      --mono:     'IBM Plex Mono', monospace;
+      --display:  'Major Mono Display', 'IBM Plex Mono', monospace;
+    }
+
+    html, body {
+      height: 100%;
+      background: var(--bg);
+      color: var(--text);
+      font-family: var(--mono);
+      overflow: hidden;
+      cursor: none;       /* full immersion for screen recording */
+    }
+
+    .stage {
+      position: relative;
+      width: 100vw;
+      height: 100vh;
+      max-width: 100%;
+      max-height: 100%;
+      overflow: hidden;
+      background:
+        radial-gradient(ellipse 70% 60% at 50% 35%, rgba(120,177,90,.08) 0%, transparent 70%),
+        radial-gradient(ellipse 100% 90% at 50% 100%, rgba(0,0,0,.5) 0%, transparent 60%),
+        var(--bg);
+    }
+
+    /* CRT scanline overlay */
+    .stage::before {
+      content: '';
+      position: absolute; inset: 0;
+      background: repeating-linear-gradient(to bottom,
+        rgba(0,0,0,.10) 0, rgba(0,0,0,.10) 1px,
+        transparent 1px, transparent 4px);
+      pointer-events: none;
+      mix-blend-mode: multiply;
+      z-index: 100;
+    }
+    /* Soft vignette */
+    .stage::after {
+      content: '';
+      position: absolute; inset: 0;
+      box-shadow: inset 0 0 200px rgba(0,0,0,.6);
+      pointer-events: none;
+      z-index: 99;
+    }
+
+    /* Terminal-frame brackets */
+    .frame {
+      position: absolute;
+      inset: 36px;
+      pointer-events: none;
+      z-index: 50;
+    }
+    .frame::before, .frame::after {
+      content: '';
+      position: absolute;
+      width: 28px; height: 28px;
+      border: 1px solid var(--border);
+    }
+    .frame::before { top: 0; left: 0;  border-right: none; border-bottom: none; }
+    .frame::after  { bottom: 0; right: 0; border-left:  none; border-top:    none; }
+    .frame .tr, .frame .bl {
+      position: absolute;
+      width: 28px; height: 28px;
+      border: 1px solid var(--border);
+    }
+    .frame .tr { top: 0; right: 0; border-left:  none; border-bottom: none; }
+    .frame .bl { bottom: 0; left: 0;  border-right: none; border-top:    none; }
+
+    /* Live status pip + URL — present throughout */
+    .header-strip {
+      position: absolute;
+      top: 60px; left: 60px; right: 60px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 12px;
+      letter-spacing: 2.5px;
+      text-transform: uppercase;
+      color: var(--text-mute);
+      z-index: 60;
+    }
+    .pip { display: inline-flex; align-items: center; gap: 8px; }
+    .pip-dot {
+      width: 8px; height: 8px;
+      border-radius: 50%;
+      background: var(--g-hot);
+      box-shadow: 0 0 10px var(--g-hot);
+      animation: pip-beat 1.6s ease-in-out infinite;
+    }
+    @keyframes pip-beat {
+      0%, 100% { transform: scale(1); opacity: .9; }
+      50%      { transform: scale(1.4); opacity: 1; }
+    }
+    .pip b { color: var(--g-bri); font-weight: 500; }
+    .url-strip { color: var(--g-bri); }
+
+    /* Each scene takes the full stage and fades in/out at scheduled
+       points within the 30s timeline. animation-fill-mode keeps state
+       between cycles. */
+    .scene {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      opacity: 0;
+      animation-duration: 30s;
+      animation-iteration-count: infinite;
+      animation-timing-function: cubic-bezier(.4,0,.2,1);
+      animation-fill-mode: both;
+      will-change: opacity, transform;
+    }
+
+    /* ── 0-3s: boot terminal ────────────────────────────────────────── */
+    .scene--boot { animation-name: scene-boot; }
+    @keyframes scene-boot {
+      0%, 9%  { opacity: 1; }
+      10%, 100% { opacity: 0; }
+    }
+    .boot-line {
+      font-family: var(--mono);
+      font-size: 28px;
+      color: var(--g-bri);
+      letter-spacing: 2px;
+      text-shadow: 0 0 12px rgba(120,177,90,.40);
+    }
+    .boot-line .typed {
+      display: inline-block;
+      overflow: hidden;
+      white-space: nowrap;
+      vertical-align: bottom;
+      animation: boot-type 1.4s steps(28) forwards;
+    }
+    @keyframes boot-type { from { width: 0; } to { width: 28ch; } }
+    .boot-cursor {
+      display: inline-block;
+      width: 14px; height: 28px;
+      background: var(--g-hot);
+      margin-left: 4px;
+      animation: blink 0.7s steps(2) infinite;
+    }
+    @keyframes blink { 50% { opacity: 0; } }
+    .boot-sub {
+      margin-top: 14px;
+      font-size: 14px;
+      letter-spacing: 3px;
+      color: var(--text-mute);
+      text-transform: uppercase;
+      opacity: 0;
+      animation: boot-sub-fade 30s infinite;
+    }
+    @keyframes boot-sub-fade {
+      0%, 5% { opacity: 0; }
+      6%, 9% { opacity: 1; }
+      10%, 100% { opacity: 0; }
+    }
+
+    /* ── 3-8s: logo reveal ──────────────────────────────────────────── */
+    .scene--logo { animation-name: scene-logo; }
+    @keyframes scene-logo {
+      0%, 9%   { opacity: 0; }
+      11%, 25% { opacity: 1; }
+      26%, 100%{ opacity: 0; }
+    }
+    .logo-flame {
+      font-size: 96px;
+      line-height: 1;
+      filter: drop-shadow(0 0 24px rgba(255,106,106,.5)) drop-shadow(0 0 40px rgba(255,165,80,.3));
+      animation: ember 2.2s ease-in-out infinite;
+      margin-bottom: 18px;
+    }
+    @keyframes ember {
+      0%, 100% { transform: translateY(0) scale(1); filter: drop-shadow(0 0 24px rgba(255,106,106,.55)) drop-shadow(0 0 40px rgba(255,165,80,.30)); }
+      50%      { transform: translateY(-3px) scale(1.04); filter: drop-shadow(0 0 36px rgba(255,106,106,.75)) drop-shadow(0 0 60px rgba(255,165,80,.50)); }
+    }
+    .logo-text {
+      font-family: var(--display);
+      font-size: 96px;
+      letter-spacing: 12px;
+      color: var(--g-bri);
+      text-shadow: 0 0 30px rgba(120,177,90,.45);
+      line-height: 1;
+    }
+    .logo-text .accent { color: var(--neg); text-shadow: 0 0 30px rgba(255,106,106,.55); }
+    .logo-tag {
+      margin-top: 22px;
+      font-size: 18px;
+      letter-spacing: 8px;
+      text-transform: uppercase;
+      color: var(--g-bri);
+    }
+
+    /* ── 8-15s: hook stat ───────────────────────────────────────────── */
+    .scene--hook { animation-name: scene-hook; }
+    @keyframes scene-hook {
+      0%, 25%  { opacity: 0; }
+      27%, 48% { opacity: 1; }
+      50%, 100%{ opacity: 0; }
+    }
+    .hook-eyebrow {
+      font-size: 14px;
+      letter-spacing: 5px;
+      text-transform: uppercase;
+      color: var(--text-mute);
+      margin-bottom: 16px;
+    }
+    .hook-line {
+      font-size: 38px;
+      letter-spacing: 1px;
+      color: var(--text);
+      text-align: center;
+      max-width: 1000px;
+      line-height: 1.3;
+    }
+    .hook-line b { color: var(--g-hot); font-weight: 600; }
+    .hook-line .chip {
+      display: inline-block;
+      padding: 4px 12px;
+      background: var(--g15);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      color: var(--g-bri);
+      font-size: 28px;
+      letter-spacing: 3px;
+      margin: 0 4px;
+    }
+    .hook-counter {
+      margin-top: 36px;
+      font-family: var(--display);
+      font-size: 92px;
+      color: var(--neg-bri);
+      letter-spacing: 4px;
+      text-shadow: 0 0 30px rgba(255,106,106,.45);
+      animation: hook-tick 30s linear infinite;
+    }
+    /* Drive the counter via a CSS counter increment surrogate using a span list */
+    .counter-track {
+      display: inline-block;
+      position: relative;
+      height: 1em;
+      overflow: hidden;
+      vertical-align: baseline;
+    }
+    .counter-track .digits {
+      display: block;
+      animation: counter-roll 4s cubic-bezier(.2,0,.0,1) infinite;
+    }
+    .counter-unit {
+      font-size: 36px;
+      color: var(--text-dim);
+      margin-left: 12px;
+      letter-spacing: 4px;
+    }
+    .hook-sub {
+      margin-top: 20px;
+      font-size: 14px;
+      letter-spacing: 4px;
+      text-transform: uppercase;
+      color: var(--text-mute);
+    }
+    .hook-sub b { color: var(--g-bri); font-weight: 500; }
+
+    /* Counter roll: cycles through values that spell out the cumulative
+       recovered counter. Placeholder values — you can tune to match the
+       live network number. */
+    .counter-track .digits::before {
+      content: '0.0001\A 0.0250\A 0.0500\A 0.0755\A 0.1100\A 0.1500\A 0.2000\A 0.2755';
+      white-space: pre;
+      display: block;
+      line-height: 1em;
+      animation: counter-roll 30s steps(8) infinite;
+    }
+    @keyframes counter-roll {
+      0%   { transform: translateY(0); }
+      100% { transform: translateY(-7em); }
+    }
+
+    /* ── 15-23s: demo flow montage ─────────────────────────────────── */
+    .scene--demo { animation-name: scene-demo; }
+    @keyframes scene-demo {
+      0%, 48%  { opacity: 0; }
+      50%, 75% { opacity: 1; }
+      77%, 100%{ opacity: 0; }
+    }
+    .demo-track {
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+      width: 720px;
+      max-width: 84%;
+    }
+    .demo-step {
+      display: flex;
+      align-items: center;
+      gap: 18px;
+      background: linear-gradient(180deg, rgba(28,48,24,.72) 0%, rgba(20,35,18,.55) 100%);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 18px 24px;
+      opacity: 0;
+      transform: translateY(20px);
+    }
+    .demo-step .num {
+      font-family: var(--display);
+      font-size: 22px;
+      color: var(--g);
+      letter-spacing: 2px;
+      flex-shrink: 0;
+    }
+    .demo-step .label {
+      font-size: 16px;
+      letter-spacing: 3px;
+      text-transform: uppercase;
+      color: var(--g-bri);
+      flex: 1;
+    }
+    .demo-step .pill {
+      font-size: 11px;
+      letter-spacing: 2px;
+      padding: 5px 10px;
+      border-radius: 4px;
+      text-transform: uppercase;
+    }
+    .demo-step .pill.scan { color: var(--g-bri); border: 1px solid var(--border); background: var(--g08); }
+    .demo-step .pill.sel  { color: var(--warn); border: 1px solid rgba(216,169,58,.40); background: rgba(216,169,58,.08); }
+    .demo-step .pill.burn { color: var(--neg-bri); border: 1px solid rgba(255,106,106,.40); background: rgba(255,106,106,.08); animation: burn-pulse 1.4s ease-in-out infinite; }
+    .demo-step .pill.done { color: #6dd97d; border: 1px solid rgba(109,217,125,.40); background: rgba(109,217,125,.08); }
+    @keyframes burn-pulse {
+      0%, 100% { box-shadow: 0 0 0 0 rgba(255,106,106,.30); }
+      50%      { box-shadow: 0 0 0 8px rgba(255,106,106,0); }
+    }
+
+    .demo-step:nth-child(1) { animation: demo-step-in 30s infinite; animation-delay: 0s; }
+    .demo-step:nth-child(2) { animation: demo-step-in 30s infinite; animation-delay: 0s; }
+    .demo-step:nth-child(3) { animation: demo-step-in 30s infinite; animation-delay: 0s; }
+    @keyframes demo-step-in {
+      0%, 50%   { opacity: 0; transform: translateY(20px); }
+      52%, 75%  { opacity: 1; transform: translateY(0); }
+      77%, 100% { opacity: 0; transform: translateY(-10px); }
+    }
+    .demo-step:nth-child(2) { animation-delay: 0s; animation-name: demo-step2-in; }
+    .demo-step:nth-child(3) { animation-name: demo-step3-in; }
+    @keyframes demo-step2-in {
+      0%, 56%   { opacity: 0; transform: translateY(20px); }
+      58%, 75%  { opacity: 1; transform: translateY(0); }
+      77%, 100% { opacity: 0; transform: translateY(-10px); }
+    }
+    @keyframes demo-step3-in {
+      0%, 64%   { opacity: 0; transform: translateY(20px); }
+      66%, 75%  { opacity: 1; transform: translateY(0); }
+      77%, 100% { opacity: 0; transform: translateY(-10px); }
+    }
+
+    /* ── 23-30s: CTA card ──────────────────────────────────────────── */
+    .scene--cta { animation-name: scene-cta; }
+    @keyframes scene-cta {
+      0%, 75%   { opacity: 0; }
+      77%, 99%  { opacity: 1; }
+      99.5%, 100%{ opacity: 0; }
+    }
+    .cta-flame {
+      font-size: 80px;
+      animation: ember 2.2s ease-in-out infinite;
+      filter: drop-shadow(0 0 26px rgba(255,106,106,.55));
+      margin-bottom: 16px;
+    }
+    .cta-title {
+      font-family: var(--display);
+      font-size: 84px;
+      color: var(--g-bri);
+      letter-spacing: 14px;
+      text-shadow: 0 0 28px rgba(120,177,90,.40);
+      margin-bottom: 14px;
+    }
+    .cta-title .accent { color: var(--neg); text-shadow: 0 0 28px rgba(255,106,106,.50); }
+    .cta-url {
+      font-family: var(--mono);
+      font-size: 32px;
+      letter-spacing: 4px;
+      color: var(--g-hot);
+      padding: 10px 24px;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      background: var(--g08);
+      animation: pip-beat 1.8s ease-in-out infinite;
+    }
+    .cta-meta {
+      margin-top: 26px;
+      display: flex;
+      gap: 18px;
+      flex-wrap: wrap;
+      justify-content: center;
+    }
+    .cta-meta .pill {
+      font-size: 12px;
+      letter-spacing: 2.5px;
+      text-transform: uppercase;
+      padding: 6px 14px;
+      border-radius: 999px;
+      border: 1px solid var(--border);
+      background: var(--g08);
+      color: var(--g-bri);
+    }
+    .cta-meta .pill.audit {
+      color: #6dd97d;
+      border-color: rgba(109,217,125,.40);
+      background: rgba(109,217,125,.06);
+    }
+
+    /* Footer URL strip — visible across all scenes for screen-grab safety */
+    .footer-strip {
+      position: absolute;
+      bottom: 60px; left: 60px; right: 60px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 11px;
+      letter-spacing: 3px;
+      color: var(--text-mute);
+      text-transform: uppercase;
+      z-index: 60;
+    }
+    .footer-strip .left { display: inline-flex; gap: 14px; align-items: center; }
+    .footer-strip b { color: var(--g-bri); font-weight: 500; }
+    .progress {
+      flex: 1;
+      max-width: 280px;
+      height: 2px;
+      background: rgba(120,177,90,.10);
+      margin: 0 28px;
+      border-radius: 1px;
+      overflow: hidden;
+      position: relative;
+    }
+    .progress::after {
+      content: '';
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      transform-origin: left center;
+      background: linear-gradient(90deg, var(--g) 0%, var(--g-bri) 100%);
+      box-shadow: 0 0 10px rgba(120,177,90,.55);
+      animation: progress-fill 30s linear infinite;
+    }
+    @keyframes progress-fill {
+      0%   { transform: scaleX(0); }
+      100% { transform: scaleX(1); }
+    }
+
+    @media (max-width: 760px) {
+      .header-strip, .footer-strip { left: 24px; right: 24px; top: 24px; bottom: 24px; }
+      .header-strip { top: 24px; }
+      .footer-strip { bottom: 24px; }
+      .frame { inset: 16px; }
+      .logo-text, .cta-title { font-size: 56px; letter-spacing: 8px; }
+      .logo-flame, .cta-flame { font-size: 64px; }
+      .hook-line { font-size: 24px; }
+      .hook-counter { font-size: 56px; }
+      .demo-track { width: auto; }
+    }
+  </style>
+</head>
+<body>
+  <div class="stage">
+    <!-- decorative frame -->
+    <div class="frame"><span class="tr"></span><span class="bl"></span></div>
+
+    <!-- always-on header chrome -->
+    <div class="header-strip">
+      <span class="pip"><span class="pip-dot"></span> <b>LIVE</b> · NET SOLANA MAINNET · FEE 0%</span>
+      <span class="url-strip">burn.databasis.info</span>
+    </div>
+
+    <!-- 0-3s: boot -->
+    <section class="scene scene--boot">
+      <div class="boot-line">
+        <span class="typed">&gt; basis-burn::initialize</span><span class="boot-cursor"></span>
+      </div>
+      <div class="boot-sub">wallet scanner · engaged</div>
+    </section>
+
+    <!-- 3-8s: logo -->
+    <section class="scene scene--logo">
+      <div class="logo-flame">🔥</div>
+      <div class="logo-text">BASIS&nbsp;<span class="accent">BURN</span></div>
+      <div class="logo-tag">close · burn · recover</div>
+    </section>
+
+    <!-- 8-15s: hook -->
+    <section class="scene scene--hook">
+      <div class="hook-eyebrow">— every solana wallet has —</div>
+      <div class="hook-line">
+        SOL locked in <span class="chip">EMPTY ACCOUNTS</span>,
+        <span class="chip">DUST</span>, &amp; <span class="chip">UNWANTED NFTs</span>
+      </div>
+      <div class="hook-counter">
+        <span class="counter-track"><span class="digits"></span></span>
+        <span class="counter-unit">SOL</span>
+      </div>
+      <div class="hook-sub">recovered network-wide · <b>and counting</b></div>
+    </section>
+
+    <!-- 15-23s: demo montage -->
+    <section class="scene scene--demo">
+      <div class="demo-track">
+        <div class="demo-step">
+          <span class="num">01</span>
+          <span class="label">SCAN&nbsp;WALLET</span>
+          <span class="pill scan">29 EMPTY · 25 TOKENS · 3 cNFTs</span>
+        </div>
+        <div class="demo-step">
+          <span class="num">02</span>
+          <span class="label">SELECT&nbsp;DUST</span>
+          <span class="pill sel">+ 0.0612 SOL RECOVERABLE</span>
+        </div>
+        <div class="demo-step">
+          <span class="num">03</span>
+          <span class="label">INITIATE&nbsp;BURN</span>
+          <span class="pill burn">SIGNING…</span>
+        </div>
+      </div>
+    </section>
+
+    <!-- 23-30s: CTA -->
+    <section class="scene scene--cta">
+      <div class="cta-flame">🔥</div>
+      <div class="cta-title">BASIS&nbsp;<span class="accent">BURN</span></div>
+      <div class="cta-url">burn.databasis.info</div>
+      <div class="cta-meta">
+        <span class="pill">100% FREE</span>
+        <span class="pill">NO FEES</span>
+        <span class="pill">OPEN SOURCE</span>
+        <span class="pill audit">✓ AUDIT PASSED</span>
+      </div>
+    </section>
+
+    <!-- always-on footer chrome -->
+    <div class="footer-strip">
+      <span class="left">basis<b>:~$</b> RECOVER&nbsp;SOL_</span>
+      <span class="progress"></span>
+      <span>v1.0 · LIVE</span>
+    </div>
+  </div>
+</body>
+</html>

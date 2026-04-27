@@ -1,4 +1,5 @@
 import { SOL_PER_LAMPORT } from '../config';
+import { ShareButtons } from './ShareButtons';
 
 const STEP_LABELS = {
   preparing: 'Preparing…',
@@ -76,8 +77,8 @@ function ReviewStage({ review, onConfirm, onCancel }) {
   );
 }
 
-export function BurnModal({ status, review, onConfirm, onCancel, onClose }) {
-  const { running, step, progress, done, error, recoveredLamports, txids, failures = [], attempted } = status;
+export function BurnModal({ status, review, onConfirm, onCancel, onClose, walletAddress, userStats }) {
+  const { running, step, progress, done, error, recoveredLamports, txids, failures = [], attempted, succeeded } = status;
 
   // Stage selection: review (no signing yet) → running → done | error.
   // `review` is set by the parent before any execute() call; once execute
@@ -178,6 +179,17 @@ export function BurnModal({ status, review, onConfirm, onCancel, onClose }) {
                 ))}
               </div>
             )}
+
+            {/* Brag-share row — generates a 1200×630 PNG card via SVG+Canvas
+                and posts to X / Telegram with prefilled text. Reused later
+                for achievement-unlock cards. */}
+            <ShareButtons
+              recoveredLamports={recoveredLamports}
+              succeeded={succeeded}
+              walletAddress={walletAddress}
+              userStats={userStats}
+            />
+
             <button className="btn-primary" onClick={onClose}>close</button>
           </>
         )}

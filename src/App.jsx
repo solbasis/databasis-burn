@@ -9,6 +9,7 @@ import { UserHistoryPanel } from './components/UserHistoryPanel';
 import { useScanner } from './hooks/useScanner';
 import { useBurn } from './hooks/useBurn';
 import { useWalletBalance } from './hooks/useWalletBalance';
+import { useUserStats } from './hooks/useUserStats';
 import { SOL_PER_LAMPORT } from './config';
 
 // Selection keys are namespaced as `${type}:${id}` so an NFT mint and a token
@@ -55,6 +56,11 @@ export default function App() {
   const burnState = useBurn();
   const walletAddress = wallet.publicKey?.toBase58() ?? null;
   const balanceLamports = useWalletBalance(walletAddress);
+  // User stats are passed into BurnModal so the share-card can stamp the
+  // currently-highest unlocked tier (✦ first / ✦✦ veteran / ◈ tenth-sol /
+  // ✦✦✦ centurion / ◈◈ whole-sol). Same data already powers the user
+  // history panel and the achievements row, so this is one shared read.
+  const userStats = useUserStats(walletAddress);
 
   const [selected, setSelected] = useState(new Set());
   const [showModal, setShowModal] = useState(false);
@@ -407,6 +413,8 @@ export default function App() {
           onConfirm={confirmBurn}
           onCancel={cancelBurn}
           onClose={handleModalClose}
+          walletAddress={walletAddress}
+          userStats={userStats}
         />
       )}
     </div>

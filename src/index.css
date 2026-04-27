@@ -1,74 +1,13 @@
 /* ── Google Fonts ───────────────────────────────────────── */
 @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@300;400;500;600;700&family=Major+Mono+Display&display=swap');
 
+/* ── Canonical BASIS design tokens (dark + light themes) ─
+   Source of truth: databasis-web/design/tokens.css
+   Vendored copy here so this app has zero cross-origin deps. */
+@import './tokens.css';
+
 /* ── Reset ─────────────────────────────────────────────── */
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-
-/* ── Design Tokens ─────────────────────────────────────── */
-:root {
-  /* Primary — phosphor green, the terminal voice */
-  --g:          #78b15a;
-  --g-bright:   #a4e07e;
-  --g-hot:      #c2f08e;
-  --g90:        rgba(120,177,90,.92);
-  --g70:        rgba(120,177,90,.70);
-  --g40:        rgba(120,177,90,.40);
-  --g25:        rgba(120,177,90,.25);
-  --g15:        rgba(120,177,90,.15);
-  --g12:        rgba(120,177,90,.12);
-  --g10:        rgba(120,177,90,.10);
-  --g06:        rgba(120,177,90,.06);
-  --g03:        rgba(120,177,90,.03);
-
-  /* Background field — darker than before, deeper black-green */
-  --bg:         #060904;
-  --bg2:        #040603;
-  --bg3:        #0a1408;
-  --bg-card:    #0c130a;
-  --surface:    rgba(20,35,18,.55);
-  --surface-hi: rgba(28,48,24,.72);
-
-  /* Text — bumped contrast on dim/mute steps for WCAG AA */
-  --text:       rgba(176,225,148,.96);
-  --text-soft:  rgba(150,200,128,.86);
-  --text-dim:   rgba(140,190,118,.66);
-  --text-mute:  rgba(130,180,108,.42);
-
-  /* Borders */
-  --border:     rgba(120,177,90,.18);
-  --border-hi:  rgba(120,177,90,.32);
-  --border-act: rgba(120,177,90,.55);
-
-  /* Semantic accents */
-  --pos:        #6dd97d;
-  --neg:        #ff6a6a;          /* hotter red — burn means burn */
-  --neg-bright: #ff9494;
-  --neg-glow:   rgba(255,106,106,.45);
-  --warn:       #d8a93a;          /* amber — second voice for cNFT/warning notes */
-  --warn-soft:  rgba(216,169,58,.78);
-
-  /* Glows + shadows */
-  --glow:       0 0 6px  rgba(120,177,90,.22);
-  --glow-md:    0 0 14px rgba(120,177,90,.40);
-  --glow-lg:    0 0 28px rgba(120,177,90,.55);
-  --glow-fire:  0 0 22px rgba(255,106,106,.40);
-  --shadow:     inset 0 0 14px rgba(120,177,90,.04);
-  --shadow-card: 0 8px 32px rgba(0,0,0,.55), inset 0 0 0 1px rgba(120,177,90,.06);
-  --scanline:   rgba(120,177,90,.018);
-
-  /* Radii */
-  --r:          14px;
-  --r-md:       12px;
-  --r-sm:       10px;
-  --r-xs:       6px;
-
-  /* Type */
-  --mono:       'IBM Plex Mono', ui-monospace, monospace;
-  --display:    'Major Mono Display', 'IBM Plex Mono', monospace;
-
-  /* Focus ring */
-  --focus:      0 0 0 2px var(--bg), 0 0 0 4px var(--g70);
-}
 
 /* ── Base ───────────────────────────────────────────────── */
 html, body, #root {
@@ -101,7 +40,9 @@ body::after {
   mix-blend-mode: multiply;
 }
 
-/* Ambient screen glow + subtle vignette */
+/* Ambient screen glow + subtle vignette. Vignette uses bg-tinted dark in
+   dark mode and a near-invisible cream wash in light mode (vignettes look
+   wrong on cream backgrounds). */
 body::before {
   content: '';
   position: fixed;
@@ -111,6 +52,11 @@ body::before {
     radial-gradient(ellipse 100% 90% at 50% 100%, rgba(0,0,0,.45) 0%, transparent 60%);
   pointer-events: none;
   z-index: 0;
+}
+:root[data-theme="light"] body::before {
+  background:
+    radial-gradient(ellipse 70% 50% at 50% 25%, rgba(74,124,42,.06) 0%, transparent 65%),
+    radial-gradient(ellipse 100% 90% at 50% 100%, rgba(40,60,30,.06) 0%, transparent 60%);
 }
 
 a { color: var(--g); text-decoration: none; }
@@ -221,6 +167,38 @@ a:hover { color: var(--g-bright); text-decoration: underline; text-underline-off
   gap: 14px;
   flex-wrap: wrap;
 }
+
+.header-right {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+}
+
+/* Theme toggle — tiny icon button next to the wallet button. The icon
+   shows the OPPOSITE theme so the action is obvious (sun = "switch to
+   light" while in dark, moon = "switch to dark" while in light). */
+.theme-toggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  background: var(--g06);
+  color: var(--text-soft);
+  border: 1px solid var(--border);
+  border-radius: var(--r-sm);
+  font-size: 1rem;
+  line-height: 1;
+  cursor: pointer;
+  transition: background .15s, border-color .15s, color .15s, transform .1s;
+}
+.theme-toggle:hover {
+  background: var(--g12);
+  border-color: var(--border-hi);
+  color: var(--g-hot);
+  transform: translateY(-1px);
+}
+.theme-toggle:active { transform: translateY(0); }
 
 .logo {
   font-family: var(--display);
@@ -1114,7 +1092,7 @@ a:hover { color: var(--g-bright); text-decoration: underline; text-underline-off
   display: flex;
   flex-direction: column;
   gap: 14px;
-  box-shadow: 0 0 60px rgba(120,177,90,.18), 0 24px 80px rgba(0,0,0,.7);
+  box-shadow: var(--shadow-modal);
   position: relative;
   overflow: hidden;
 }

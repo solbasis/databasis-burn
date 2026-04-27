@@ -1,6 +1,7 @@
 import { useState, useCallback, useMemo, useEffect } from 'react';
 import { useWallet } from '@solana/wallet-adapter-react';
 import { WalletButton } from './components/WalletButton';
+import { ThemeToggle } from './components/ThemeToggle';
 import { ResultsTabs } from './components/ResultsTabs';
 import { BurnModal } from './components/BurnModal';
 import { RecoveredCounter } from './components/RecoveredCounter';
@@ -229,7 +230,10 @@ export default function App() {
           </span>
           <span className="tagline">close · burn · recover</span>
         </div>
-        <WalletButton />
+        <div className="header-right">
+          <ThemeToggle />
+          <WalletButton />
+        </div>
       </header>
 
       {/* Status strip — gives the app a "live operator console" feel and tells

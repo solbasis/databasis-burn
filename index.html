@@ -36,6 +36,11 @@
     <script>
       window.global = window;
     </script>
+
+    <!-- BASIS Theme — sets <html data-theme="dark|light"> before first
+         paint. Synchronous on purpose: avoids a flash-of-wrong-theme on
+         reload. ~1KB, no deps. Persists user choice in localStorage. -->
+    <script src="/theme.js"></script>
   </head>
   <body>
     <div id="root"></div>

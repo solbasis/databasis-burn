@@ -383,7 +383,7 @@ a:hover { color: var(--g-bright); text-decoration: underline; text-underline-off
 }
 .hero-step {
   position: relative;
-  background: linear-gradient(180deg, var(--surface) 0%, rgba(8,14,6,.6) 100%);
+  background: linear-gradient(180deg, var(--card-grad-top) 0%, var(--card-grad-bottom) 100%);
   border: 1px solid var(--border);
   border-radius: var(--r-md);
   padding: 16px 16px 18px;
@@ -1073,7 +1073,7 @@ a:hover { color: var(--g-bright); text-decoration: underline; text-underline-off
 .modal-overlay {
   position: fixed;
   inset: 0;
-  background: rgba(4,8,2,.92);
+  background: var(--overlay-bg);
   display: flex;
   align-items: center;
   justify-content: center;

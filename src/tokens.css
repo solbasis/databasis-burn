@@ -101,6 +101,17 @@
   --head-border: rgba(120,177,90,.12);
   --dot-color:   rgba(120,177,90,.35);
 
+  /* ── Card / panel surfaces (theme-aware) ──────────────────────────── */
+  /* Two gradient stops for "lifted card" surfaces. Dark: slightly green
+     translucent at top, deeper toward the bottom for an inset-shadow feel.
+     Light: subtle cream-green wash at top, slightly more opaque at bottom
+     so the card lifts off the page in both themes. */
+  --card-grad-top:    rgba(20,35,18,.55);
+  --card-grad-bottom: rgba(8,14,6,.60);
+
+  /* ── Modal/dialog overlay backdrop (theme-aware) ──────────────────── */
+  --overlay-bg:  rgba(4,8,2,.92);
+
   /* ── Focus ring (a11y) ─────────────────────────────────────────────── */
   --focus:       0 0 0 2px var(--bg), 0 0 0 4px var(--g70);
 }
@@ -170,6 +181,15 @@
   --head-bg:     rgba(74,124,42,.07);
   --head-border: rgba(74,124,42,.15);
   --dot-color:   rgba(74,124,42,.35);
+
+  /* Card surfaces — slightly lifted off the cream paper. The previous
+     dark-token values (rgba(8,14,6,.6)) painted a 60% dark overlay over
+     the cream which created a muddy olive box that swallowed text. */
+  --card-grad-top:    rgba(255,253,240,.85);   /* near-white wash */
+  --card-grad-bottom: rgba(74,124,42,.06);     /* faint green tint */
+
+  /* Overlay backdrop — light dim instead of near-black */
+  --overlay-bg:  rgba(40,60,30,.45);
 }
 
 /* ════════════════════════════════════════════════════════════════════════
